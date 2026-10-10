@@ -1,53 +1,98 @@
-# QUARK 4.0: MASTER GAMING & VECTOR SUPPORT
+# QUARK 4.0 — Master Gaming & Vector Support
+
 import random
 import time
 import sys
 import os
 import re
-
-try:
-    from prompt_toolkit import PromptSession
-    from prompt_toolkit.lexers import PygmentsLexer
-    from pygments.lexer import RegexLexer
-    from pygments import token
-    HAS_PROMPT_TOOLKIT = True
-except ImportError:
-    HAS_PROMPT_TOOLKIT = False
+import ast
+import operator
+from typing import Any
 
 variables = {}
 functions = {}
 
-print("Welcome To Quark 4.0, The Future Of Programming! ")
-time.sleep(1)
-print("Initialising Shell... ")
-time.sleep(1)
+# ---------------------------------------------------------------------------
+# Optional interactive prompt + Quark syntax highlighting
+# ---------------------------------------------------------------------------
+
+try:
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.lexers import PygmentsLexer
+    from prompt_toolkit.styles import Style
+    from pygments.lexer import RegexLexer
+    from pygments import token
+
+    class QuarkLexer(RegexLexer):
+        name = "Quark"
+        aliases = ["quark"]
+        tokens = {
+            "root": [
+                (r"\s+", token.Text),
+                (r"#.*$", token.Comment),
+                (r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', token.String),
+                (
+                    r"\b(?:help|print|math|let|repeat|if|then|game|loop|fn|"
+                    r"call|input|type|vector_push|vector_pop|list|time|wait|"
+                    r"random|read|run|write|append|clear|import|stop|exit|kill)\b",
+                    token.Keyword,
+                ),
+                (r"\b(?:true|false|none)\b", token.Name.Builtin),
+                (r"\b\d+(?:\.\d+)?\b", token.Number),
+                (r"[+\-*/%=<>!]+", token.Operator),
+                (r"\b[A-Za-z_]\w*\b", token.Name.Variable),
+                (r".", token.Text),
+            ]
+        }
+
+    HAS_PROMPT_TOOLKIT = True
+except ImportError:
+    HAS_PROMPT_TOOLKIT = False
+    PromptSession = None
+    PygmentsLexer = None
+    Style = None
+    QuarkLexer = None
+
+
+def make_session():
+    """Create one prompt session, falling back to input() if optional packages fail."""
+    if not HAS_PROMPT_TOOLKIT:
+        return None
+    try:
+        style = Style.from_dict({
+            "pygments.keyword": "#FFA500 bold",
+            "pygments.name.variable": "#00BFFF bold",
+            "pygments.string": "#FFFFFF",
+            "pygments.number": "#FFFFFF bold",
+            "pygments.name.builtin": "#00BFFF",
+            "pygments.comment": "#808080 italic",
+            "pygments.operator": "#FF4500",
+        })
+        return PromptSession(lexer=PygmentsLexer(QuarkLexer), style=style)
+    except Exception as exc:
+        # Syntax highlighting is optional; it must never prevent Quark starting.
+        print(f"Warning: syntax highlighting disabled ({exc}).")
+        return None
+
+
+print("Welcome To Quark 4.0, The Future Of Programming!")
+time.sleep(0.2)
+print("Initialising Shell...")
+time.sleep(0.2)
 print("Done!")
 
+session = make_session()
 running = True
 
-# CUSTOM PYGMENTS LEXER FOR REAL-TIME COLORING
-# Setup Interactive Session with Real-Time Bright Color Highlighting
-if HAS_PROMPT_TOOLKIT:
-    from prompt_toolkit.styles import Style
-    # High-contrast, vibrant RGB hex styles for the Quark shell
-    custom_style = Style.from_dict({
-        'keyword': '#FFA500 bold',          # Bright Orange for Keywords
-        'name.variable': '#00BFFF bold',      # Light/Sky Blue for Variables & Vectors
-        'string': '#FFFFFF',                  # Bright White for Strings
-        'number': '#FFFFFF bold',             # Bright White for Numbers
-        'name.builtin': '#00BFFF',            # Light Blue for Builtins (true/false/none)
-        'comment': '#808080 italic',          # Muted Gray for Comments
-        'operator': '#FF4500',                # Orangey-Red for Operators
-    })
-    session = PromptSession(lexer=PygmentsLexer(QuarkLexer), style=custom_style)
-else:
-    session = None
 
-# VECTOR DATA STRUCTURE CLASS
+# ---------------------------------------------------------------------------
+# Vector data structure
+# ---------------------------------------------------------------------------
+
 class QuarkVector:
-    def __init__(self, elements, mode="stack"):
+    def __init__(self, elements=(), mode="stack"):
         self.elements = list(elements)
-        self.mode = mode.lower()  # "stack" or "queue"
+        self.mode = mode.lower()
 
     def push(self, val):
         self.elements.append(val)
@@ -77,96 +122,21 @@ class QuarkVector:
         self.elements[index] = val
 
     def __repr__(self):
-        inner = ", ".join(str(e) for e in self.elements)
-        if self.mode == "stack":
-            return f"[{inner}]"
-        else:
-            return f"{{{inner}}}"
+        inner = ", ".join(repr(e) if isinstance(e, str) else str(e) for e in self.elements)
+        return f"[{inner}]" if self.mode == "stack" else f"{{{inner}}}"
+
+
+# ---------------------------------------------------------------------------
+# Parsing helpers
+# ---------------------------------------------------------------------------
 
 def sanitize_line(text):
-    return text.replace('\xa0', ' ').strip()
+    return str(text).replace("\xa0", " ").strip()
 
-def safe_substitute(text, local_variables=None):
-    scope = variables if local_variables is None else local_variables
-    strings = []
-
-    def protect(match):
-        strings.append(match.group(0))
-        return f"__QUARK_STRING_{len(strings)-1}__"
-
-    protected = re.sub(r'"[^"]*"|\'[^\']*\'', protect, text)
-
-    # Replace vector index calls like a(1) first
-    def replace_vector_index(m):
-        v_name = m.group(1)
-        idx = int(m.group(2))
-        if v_name in scope and isinstance(scope[v_name], QuarkVector):
-            try:
-                return str(scope[v_name][idx])
-            except IndexError:
-                return "IndexError"
-        return m.group(0)
-
-    protected = re.sub(r'\b([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*(\d+)\s*\)', replace_vector_index, protected)
-
-    for name, value in sorted(scope.items(), key=lambda x: len(x[0]), reverse=True):
-        if isinstance(value, QuarkVector):
-            pattern = rf"\b{re.escape(name)}\b"
-            protected = re.sub(pattern, repr(value), protected)
-            continue
-        if callable(value):
-            continue
-
-        pattern = rf"\b{re.escape(name)}\b"
-        protected = re.sub(
-            pattern,
-            repr(value) if isinstance(value, str) else str(value),
-            protected
-        )
-
-    def restore(match):
-        return strings[int(match.group(1))]
-
-    return re.sub(r"__QUARK_STRING_(\d+)__", restore, protected)
-
-def parse_literal(val_str):
-    val_str = val_str.strip()
-    
-    if val_str.startswith("[") and val_str.endswith("]"):
-        inner = val_str[1:-1].strip()
-        if not inner:
-            return QuarkVector([], "stack")
-        raw_items = [item.strip() for item in inner.split(",")]
-        parsed_items = [parse_literal(item) for item in raw_items]
-        return QuarkVector(parsed_items, "stack")
-        
-    elif val_str.startswith("{") and val_str.endswith("}"):
-        inner = val_str[1:-1].strip()
-        if not inner:
-            return QuarkVector([], "queue")
-        raw_items = [item.strip() for item in inner.split(",")]
-        parsed_items = [parse_literal(item) for item in raw_items]
-        return QuarkVector(parsed_items, "queue")
-
-    if val_str.lower() == "true": return True
-    if val_str.lower() == "false": return False
-    if val_str.lower() == "none": return None
-
-    try:
-        return int(val_str)
-    except ValueError:
-        pass
-
-    try:
-        return float(val_str)
-    except ValueError:
-        pass
-
-    return val_str
 
 def split_print_items(arg):
-    items = []
-    current = []
+    """Split print arguments at commas, ignoring commas inside quotes/brackets."""
+    items, current = [], []
     depth = 0
     quote = None
     escaped = False
@@ -185,10 +155,10 @@ def split_print_items(arg):
         if char in ("'", '"'):
             quote = char
             current.append(char)
-        elif char == "(":
+        elif char in "([{":
             depth += 1
             current.append(char)
-        elif char == ")":
+        elif char in ")]}":
             depth = max(0, depth - 1)
             current.append(char)
         elif char == "," and depth == 0:
@@ -199,89 +169,208 @@ def split_print_items(arg):
 
     if current or arg.endswith(","):
         items.append("".join(current).strip())
-
     return items
 
-def parse_print_item(item):
-    item = sanitize_line(item)
 
-    if item.startswith("math "):
-        expr = safe_substitute(item[5:])
+def parse_literal(val_str):
+    val_str = val_str.strip()
+
+    if len(val_str) >= 2 and val_str[0] == val_str[-1] and val_str[0] in ("'", '"'):
         try:
-            return str(eval(expr))
-        except Exception:
-            return "Error //Found By QuarkSaviour!"
+            value = ast.literal_eval(val_str)
+            if isinstance(value, str):
+                return value
+        except (ValueError, SyntaxError):
+            return val_str[1:-1]
 
-    elif item.startswith("random "):
-        try:
-            low, high = map(int, safe_substitute(item[7:]).split())
-            return str(random.randint(low, high))
-        except ValueError:
-            return "Error //Found By QuarkSaviour!"
+    if val_str.startswith("[") and val_str.endswith("]"):
+        inner = val_str[1:-1].strip()
+        if not inner:
+            return QuarkVector([], "stack")
+        return QuarkVector([parse_literal(x.strip()) for x in split_print_items(inner)], "stack")
 
-    def replace_quoted_var(match):
-        var_name = match.group(1)
-        if var_name == "time":
-            return time.strftime("%H:%M:%S")
-        val = variables.get(var_name, f"'{var_name}'")
-        return str(val)
+    if val_str.startswith("{") and val_str.endswith("}"):
+        inner = val_str[1:-1].strip()
+        if not inner:
+            return QuarkVector([], "queue")
+        return QuarkVector([parse_literal(x.strip()) for x in split_print_items(inner)], "queue")
 
-    if item.startswith("'") and item.endswith("'") and len(item) > 1:
-        inner = item[1:-1]
-        if inner == "time":
-            return time.strftime("%H:%M:%S")
-        val = variables.get(inner, item)
-        return str(val)
+    lowered = val_str.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if lowered == "none":
+        return None
 
-    item = re.sub(r"'([a-zA-Z_][a-zA-Z0-9_]*)'", replace_quoted_var, item)
-    return item
+    try:
+        return int(val_str)
+    except ValueError:
+        pass
+    try:
+        return float(val_str)
+    except ValueError:
+        pass
+    return val_str
+
+
+def safe_substitute(text, local_variables=None):
+    """
+    Replace Quark variable names and v(index) expressions.
+    Quoted strings are protected from substitution.
+    """
+    scope = variables if local_variables is None else local_variables
+    strings = []
+
+    def protect(match):
+        strings.append(match.group(0))
+        return f"__QUARK_STRING_{len(strings) - 1}__"
+
+    protected = re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', protect, text)
+
+    def replace_vector_index(match):
+        name, index_text = match.group(1), match.group(2)
+        value = scope.get(name)
+        if isinstance(value, QuarkVector):
+            try:
+                index = int(index_text)
+                return repr(value[index])
+            except (IndexError, ValueError):
+                return "None"
+        return match.group(0)
+
+    protected = re.sub(
+        r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*(-?\d+)\s*\)",
+        replace_vector_index,
+        protected,
+    )
+
+    for name, value in sorted(scope.items(), key=lambda pair: len(pair[0]), reverse=True):
+        if callable(value):
+            continue
+        pattern = rf"\b{re.escape(name)}\b"
+        if isinstance(value, QuarkVector):
+            replacement = repr(value)
+        else:
+            replacement = repr(value)
+        protected = re.sub(pattern, lambda _m, r=replacement: r, protected)
+
+    def restore(match):
+        return strings[int(match.group(1))]
+
+    return re.sub(r"__QUARK_STRING_(\d+)__", restore, protected)
+
+
+# Restricted expression evaluator: arithmetic/comparisons only, no arbitrary Python calls.
+_BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_UNARY_OPS = {ast.UAdd: operator.pos, ast.USub: operator.neg, ast.Not: operator.not_}
+_CMP_OPS = {
+    ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt,
+    ast.LtE: operator.le, ast.Gt: operator.gt, ast.GtE: operator.ge,
+}
+
+
+def safe_eval(expression):
+    """Evaluate a limited Python-like expression without eval()."""
+    tree = ast.parse(expression, mode="eval")
+
+    def visit(node):
+        if isinstance(node, ast.Expression):
+            return visit(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, str, bool, type(None))):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) in _BIN_OPS:
+            return _BIN_OPS[type(node.op)](visit(node.left), visit(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+            return _UNARY_OPS[type(node.op)](visit(node.operand))
+        if isinstance(node, ast.BoolOp):
+            values = [visit(v) for v in node.values]
+            if isinstance(node.op, ast.And):
+                return all(values)
+            if isinstance(node.op, ast.Or):
+                return any(values)
+        if isinstance(node, ast.Compare):
+            left = visit(node.left)
+            for op_node, comparator in zip(node.ops, node.comparators):
+                right = visit(comparator)
+                op_func = _CMP_OPS.get(type(op_node))
+                if op_func is None or not op_func(left, right):
+                    return False
+                left = right
+            return True
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return [visit(item) for item in node.elts]
+        raise ValueError("Unsupported expression syntax")
+    return visit(tree)
+
+
+def evaluate_expression(expression):
+    substituted = safe_substitute(expression)
+    return safe_eval(substituted)
+
 
 def eval_condition(condition_expr):
     condition = safe_substitute(condition_expr)
-
-    def quote_words(expr):
-        for op in ("==", "!=", ">=", "<=", ">", "<"):
-            if op in expr:
-                left, right = expr.split(op, 1)
-                left, right = left.strip(), right.strip()
-                try:
-                    eval(left)
-                except Exception:
-                    if not left.isdigit() and not (left.startswith('"') or left.startswith("'")):
-                        left = f"'{left}'"
-                try:
-                    eval(right)
-                except Exception:
-                    if not right.isdigit() and not (right.startswith('"') or right.startswith("'")):
-                        right = f"'{right}'"
-                return f"{left} {op} {right}"
-        return expr
-
     try:
-        return bool(eval(condition))
-    except (SyntaxError, NameError):
-        try:
-            return bool(eval(quote_words(condition)))
-        except Exception as e:
-            print(f"Condition Error: {e} //Found By QuarkSaviour!")
-            return False
-    except Exception as e:
-        print(f"Condition Error: {e} //Found By QuarkSaviour!")
+        return bool(safe_eval(condition))
+    except Exception:
+        # Allow bare words on either side of a comparison, e.g. answer == yes.
+        match = re.match(r"^\s*(.*?)\s*(==|!=|>=|<=|>|<)\s*(.*?)\s*$", condition)
+        if match:
+            left, op, right = match.groups()
+            def parse_side(side):
+                side = side.strip()
+                try:
+                    return safe_eval(side)
+                except Exception:
+                    return side.strip("'\"")
+            left_value, right_value = parse_side(left), parse_side(right)
+            func = {
+                "==": operator.eq, "!=": operator.ne, ">=": operator.ge,
+                "<=": operator.le, ">": operator.gt, "<": operator.lt,
+            }[op]
+            try:
+                return bool(func(left_value, right_value))
+            except TypeError:
+                return False
+        print("Condition Error: unsupported condition syntax //Found By QuarkSaviour!")
         return False
+
 
 def find_matching_block_end(code_lines, start_idx, start_keyword, end_keyword):
     depth = 0
     for i in range(start_idx, len(code_lines)):
-        l = sanitize_line(code_lines[i])
-        if start_keyword == "fn" and l.startswith("fn ") and not l.startswith("fn end"):
+        line = sanitize_line(code_lines[i])
+        if start_keyword == "fn" and line.startswith("fn ") and line != "fn end":
             depth += 1
-        elif start_keyword == "game loop" and l.startswith("game loop"):
+        elif start_keyword == "game loop" and line.startswith("game loop"):
             depth += 1
-        elif l == end_keyword:
+        elif line == end_keyword:
             depth -= 1
             if depth == 0:
                 return i
-    return start_idx
+    return -1
+
+
+def parse_random_args(arg):
+    values = safe_substitute(arg).split()
+    if len(values) != 2:
+        raise ValueError("expected two integers")
+    low, high = map(int, values)
+    return low, high
+
+
+# ---------------------------------------------------------------------------
+# Interpreter
+# ---------------------------------------------------------------------------
 
 def run_code(code_lines):
     line_idx = 0
@@ -290,50 +379,98 @@ def run_code(code_lines):
 
     while line_idx < total_lines:
         line = sanitize_line(code_lines[line_idx])
-
         if not line or line.startswith("#"):
             line_idx += 1
             continue
 
-        if line.startswith("fn ") and not line.startswith("fn end"):
+        if line.startswith("fn ") and line != "fn end":
             func_name = line[3:].strip()
             end_idx = find_matching_block_end(code_lines, line_idx, "fn", "fn end")
-            if end_idx == line_idx:
+            if end_idx < 0:
                 print(f"Syntax Error: Missing 'fn end' for function '{func_name}' //Found By QuarkSaviour!")
-                break
-            functions[func_name] = code_lines[line_idx + 1 : end_idx]
+                return
+            functions[func_name] = code_lines[line_idx + 1:end_idx]
             line_idx = end_idx + 1
             continue
 
-        elif line.startswith("call "):
+        if line.startswith("call "):
             func_name = line[5:].strip()
             if func_name in functions:
                 run_code(functions[func_name])
             else:
                 print(f"Function Error: '{func_name}' is not defined //Found By QuarkSaviour!")
+            line_idx += 1
+            continue
 
-        elif line.startswith("game loop"):
+        if line.startswith("game loop"):
             condition_expr = line[len("game loop"):].strip()
             if eval_condition(condition_expr):
                 if not loop_stack or loop_stack[-1] != line_idx:
                     loop_stack.append(line_idx)
-            else:
-                if loop_stack and loop_stack[-1] == line_idx:
-                    loop_stack.pop()
-                end_idx = find_matching_block_end(code_lines, line_idx, "game loop", "loop end")
-                if end_idx == line_idx:
-                    print("Syntax Error: Missing 'loop end' //Found By QuarkSaviour!")
-                    break
-                line_idx = end_idx
+                line_idx += 1
+                continue
 
-        elif line == "loop end":
+            if loop_stack and loop_stack[-1] == line_idx:
+                loop_stack.pop()
+            end_idx = find_matching_block_end(code_lines, line_idx, "game loop", "loop end")
+            if end_idx < 0:
+                print("Syntax Error: Missing 'loop end' //Found By QuarkSaviour!")
+                return
+            line_idx = end_idx + 1
+            continue
+
+        if line == "loop end":
             if loop_stack:
-                line_idx = loop_stack[-1] - 1
+                line_idx = loop_stack[-1]
+            else:
+                print("Syntax Error: 'loop end' without a matching 'game loop'.")
+                line_idx += 1
+            continue
 
-        else:
-            execute(line)
-
+        execute(line)
         line_idx += 1
+
+
+def parse_print_item(item):
+    item = sanitize_line(item)
+    if not item:
+        return ""
+
+    if item.startswith("math "):
+        try:
+            return str(evaluate_expression(item[5:]))
+        except Exception:
+            return "Error //Found By QuarkSaviour!"
+
+    if item.startswith("random "):
+        try:
+            low, high = parse_random_args(item[7:])
+            return str(random.randint(low, high))
+        except Exception:
+            return "Error //Found By QuarkSaviour!"
+
+    if item in variables:
+        return str(variables[item])
+
+    if item.startswith("'") and item.endswith("'") and len(item) > 1:
+        inner = item[1:-1]
+        if inner == "time":
+            return time.strftime("%H:%M:%S")
+        if inner in variables:
+            return str(variables[inner])
+        return inner
+
+    if item.startswith('"') and item.endswith('"'):
+        try:
+            return ast.literal_eval(item)
+        except Exception:
+            return item[1:-1]
+
+    # Support vector reads and bare arithmetic expressions in print.
+    if re.fullmatch(r"[A-Za-z_]\w*\s*\(\s*-?\d+\s*\)", item):
+        return safe_substitute(item)
+    return item
+
 
 def execute(line):
     line = sanitize_line(line)
@@ -345,123 +482,129 @@ def execute(line):
     arg = parts[1].strip() if len(parts) > 1 else ""
 
     if cmd == "math":
-        expression = safe_substitute(arg)
         try:
-            print(eval(expression))
-        except Exception as e:
-            print(f"Math Error: {e} //Found By QuarkSaviour!")
+            print(evaluate_expression(arg))
+        except Exception as exc:
+            print(f"Math Error: {exc} //Found By QuarkSaviour!")
 
     elif cmd in ("stop", "exit", "kill"):
-        print("Shell Stopped Working. Thank You For Using Quark! ")
-        sys.exit()
+        print("Shell stopped. Thank you for using Quark!")
+        raise SystemExit
 
     elif cmd == "let":
-        if "=" in arg:
-            name_part, value_part = arg.split("=", 1)
-            name_part = name_part.strip()
-            value_part = value_part.strip()
-            vec_match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*(.*?)\s*\)$", name_part)
-            if vec_match:
-                v_name = vec_match.group(1)
-                idx_expr = vec_match.group(2)
-                if v_name in variables and isinstance(variables[v_name], QuarkVector):
-                    try:
-                        idx = int(eval(safe_substitute(idx_expr)))
-                        val_subbed = safe_substitute(value_part)
-                        variables[v_name][idx] = parse_literal(val_subbed)
-                    except Exception as e:
-                        print(f"Vector Index Error: {e} //Found By QuarkSaviour!")
-                else:
-                    print(f"Error: '{v_name}' is not a valid vector //Found By QuarkSaviour!")
-            else:
-                if value_part.startswith("math "):
-                    expression = safe_substitute(value_part[5:])
-                    try:
-                        variables[name_part] = eval(expression)
-                    except Exception as e:
-                        print(f"Math Error: {e} //Found By QuarkSaviour!")
-                elif value_part.startswith("random "):
-                    try:
-                        low, high = map(int, safe_substitute(value_part[7:]).split())
-                        variables[name_part] = random.randint(low, high)
-                    except ValueError:
-                        print("Error: Usage 'let var = random <min> <max>' //Found By QuarkSaviour!")
-                else:
-                    subbed = safe_substitute(value_part)
-                    variables[name_part] = parse_literal(subbed)
+        if "=" not in arg:
+            print("Usage: let variable = value")
+            return
+        name_part, value_part = map(str.strip, arg.split("=", 1))
+        vec_match = re.fullmatch(r"([A-Za-z_]\w*)\s*\(\s*(.*?)\s*\)", name_part)
+
+        if vec_match:
+            v_name, idx_expr = vec_match.groups()
+            if v_name not in variables or not isinstance(variables[v_name], QuarkVector):
+                print(f"Error: '{v_name}' is not a valid vector //Found By QuarkSaviour!")
+                return
+            try:
+                idx = int(evaluate_expression(idx_expr))
+                variables[v_name][idx] = parse_literal(safe_substitute(value_part))
+            except Exception as exc:
+                print(f"Vector Index Error: {exc} //Found By QuarkSaviour!")
+            return
+
+        if not re.fullmatch(r"[A-Za-z_]\w*", name_part):
+            print(f"Invalid variable name: {name_part}")
+            return
+
+        if value_part.startswith("math "):
+            try:
+                variables[name_part] = evaluate_expression(value_part[5:])
+            except Exception as exc:
+                print(f"Math Error: {exc} //Found By QuarkSaviour!")
+        elif value_part.startswith("random "):
+            try:
+                low, high = parse_random_args(value_part[7:])
+                variables[name_part] = random.randint(low, high)
+            except Exception:
+                print("Error: Usage 'let var = random <min> <max>' //Found By QuarkSaviour!")
+        else:
+            variables[name_part] = parse_literal(safe_substitute(value_part))
 
     elif cmd == "print":
         if not arg:
             print()
-            return
-        output = [parse_print_item(item) for item in split_print_items(arg)]
-        print(*output)
+        else:
+            print(*[parse_print_item(item) for item in split_print_items(arg)])
 
     elif cmd == "type":
-        target_var = arg.strip()
-        if target_var in variables:
-            val = variables[target_var]
-            if isinstance(val, QuarkVector):
-                print(f"vector ({val.mode})")
-            elif isinstance(val, int):
-                print("integer")
-            elif isinstance(val, float):
-                print("float")
-            elif isinstance(val, str):
-                print("string")
-            elif isinstance(val, bool):
+        target = arg.strip()
+        if target not in variables:
+            print(f"Error: Variable '{target}' not found //Found By QuarkSaviour!")
+        else:
+            value = variables[target]
+            # bool must be checked before int, because bool subclasses int in Python.
+            if isinstance(value, bool):
                 print("boolean")
+            elif isinstance(value, QuarkVector):
+                print(f"vector ({value.mode})")
+            elif isinstance(value, int):
+                print("integer")
+            elif isinstance(value, float):
+                print("float")
+            elif isinstance(value, str):
+                print("string")
+            elif value is None:
+                print("none")
             else:
                 print("unknown")
-        else:
-            print(f"Error: Variable '{target_var}' not found //Found By QuarkSaviour!")
 
     elif cmd == "vector_push":
         v_parts = arg.split(" ", 1)
-        if len(v_parts) == 2:
-            v_name, v_val = v_parts[0].strip(), v_parts[1].strip()
-            if v_name in variables and isinstance(variables[v_name], QuarkVector):
-                variables[v_name].push(parse_literal(v_val))
-            else:
-                print(f"Error: '{v_name}' is not a valid vector //Found By QuarkSaviour!")
+        if len(v_parts) != 2:
+            print("Usage: vector_push <vector> <value>")
+            return
+        v_name, v_val = v_parts[0].strip(), v_parts[1].strip()
+        if v_name in variables and isinstance(variables[v_name], QuarkVector):
+            variables[v_name].push(parse_literal(safe_substitute(v_val)))
+        else:
+            print(f"Error: '{v_name}' is not a valid vector //Found By QuarkSaviour!")
 
     elif cmd == "vector_pop":
-        if " -> " in arg:
-            v_name, dest_var = arg.split(" -> ", 1)
-            v_name, dest_var = v_name.strip(), dest_var.strip()
-            if v_name in variables and isinstance(variables[v_name], QuarkVector):
-                vec = variables[v_name]
-                ans = vec.pop() if vec.mode == "stack" else vec.dequeue()
-                variables[dest_var] = ans
-            else:
-                print(f"Error: '{v_name}' is not a valid vector //Found By QuarkSaviour!")
+        if " -> " not in arg:
+            print("Usage: vector_pop <vector> -> <variable>")
+            return
+        v_name, dest_var = map(str.strip, arg.split(" -> ", 1))
+        if v_name in variables and isinstance(variables[v_name], QuarkVector):
+            vec = variables[v_name]
+            variables[dest_var] = vec.pop() if vec.mode == "stack" else vec.dequeue()
+        else:
+            print(f"Error: '{v_name}' is not a valid vector //Found By QuarkSaviour!")
 
     elif cmd == "repeat":
         if not arg:
-            print("Usage: repeat <count> <command> //Found By QuarkSaviour!")
+            print("Usage: repeat <count> <command>")
             return
         first_token, _, remaining_cmd = arg.partition(" ")
-        first_token_sub = safe_substitute(first_token)
         try:
-            count = int(first_token_sub)
+            count = int(safe_substitute(first_token))
             command_to_run = remaining_cmd
         except ValueError:
             count = 1
             command_to_run = arg
-
+        if count < 0:
+            print("Repeat count cannot be negative.")
+            return
         if command_to_run:
             for _ in range(count):
                 run_code([command_to_run])
 
     elif cmd == "random":
         try:
-            low, high = map(int, safe_substitute(arg).split())
+            low, high = parse_random_args(arg)
             print(random.randint(low, high))
-        except ValueError:
+        except Exception:
             print("Usage: random <min> <max> //Found By QuarkSaviour!")
 
     elif cmd == "help":
-        help()
+        help_command()
 
     elif cmd == "clear":
         result = os.system("cls" if os.name == "nt" else "clear")
@@ -473,23 +616,29 @@ def execute(line):
 
     elif cmd == "wait":
         try:
-            time.sleep(float(safe_substitute(arg)))
+            seconds = float(safe_substitute(arg))
+            if seconds < 0:
+                raise ValueError
+            time.sleep(seconds)
         except ValueError:
-            print("Usage: wait <seconds> //Found By QuarkSaviour!")
+            print("Usage: wait <seconds> (must be non-negative)")
 
     elif cmd in ("run", "game"):
         target = safe_substitute(arg.strip())
-        ext = ".qk" if cmd == "game" and not target.endswith(".qk") else ""
-        filename = target + ext
+        filename = target
+        if cmd == "game" and not target.endswith(".qk"):
+            filename += ".qk"
         try:
             with open(filename, "r", encoding="utf-8") as file:
                 lines = file.readlines()
-                if not lines:
-                    print(f"Warning: '{filename}' is empty! //Found By QuarkSaviour!")
-                else:
-                    run_code(lines)
+            if not lines:
+                print(f"Warning: '{filename}' is empty!")
+            else:
+                run_code(lines)
         except FileNotFoundError:
             print(f"Error: '{filename}' does not exist //Found By QuarkSaviour!")
+        except OSError as exc:
+            print(f"File Error: {exc}")
 
     elif cmd == "read":
         target = safe_substitute(arg.strip())
@@ -498,6 +647,8 @@ def execute(line):
                 print(file.read().strip())
         except FileNotFoundError:
             print(f"Error: '{target}' does not exist //Found By QuarkSaviour!")
+        except OSError as exc:
+            print(f"Read Error: {exc}")
 
     elif cmd in ("write", "append"):
         mode = "w" if cmd == "write" else "a"
@@ -509,66 +660,63 @@ def execute(line):
             text_to_save = time.strftime("%H:%M:%S")
         elif content.startswith("math "):
             try:
-                text_to_save = str(eval(safe_substitute(content[5:])))
+                text_to_save = str(evaluate_expression(content[5:]))
             except Exception:
                 text_to_save = "Error"
         else:
-            text_to_save = safe_substitute(content)
+            text_to_save = content
+            if text_to_save.startswith('"') and text_to_save.endswith('"'):
+                text_to_save = parse_print_item(text_to_save)
+            else:
+                text_to_save = safe_substitute(text_to_save)
 
         try:
             with open(filename, mode, encoding="utf-8") as file:
                 file.write(text_to_save + "\n")
-        except Exception as e:
-            print(f"{cmd.capitalize()} Error: {e} //Found By QuarkSaviour!")
+        except OSError as exc:
+            print(f"{cmd.capitalize()} Error: {exc} //Found By QuarkSaviour!")
 
     elif cmd == "list":
         print("--- VARIABLES ---")
-        for k, v in variables.items():
-            print(f"{k} = {v}")
+        for key, value in variables.items():
+            print(f"{key} = {value}")
         print("--- FUNCTIONS ---")
-        for k in functions:
-            print(f"fn {k}")
+        for name in functions:
+            print(f"fn {name}")
 
     elif cmd == "input":
         if " -> " in arg:
-            prompt_text, var_name = arg.split(" -> ", 1)
-            var_name = var_name.strip()
-
-            def replace_quoted_var(match):
-                var = match.group(1)
-                if var == "time":
-                    return time.strftime("%H:%M:%S")
-                return str(variables.get(var, f"'{var}'"))
-
-            prompt_text = prompt_text.strip()
-            prompt_text = re.sub(r"'([a-zA-Z_][a-zA-Z0-9_]*)'", replace_quoted_var, prompt_text)
-            raw_val = input(prompt_text + " ")
-            variables[var_name] = parse_literal(raw_val)
+            prompt_text, var_name = map(str.strip, arg.split(" -> ", 1))
+            prompt_text = parse_print_item(prompt_text)
         else:
             var_name = arg.strip()
-            raw_val = input(f"Enter {var_name}: ")
-            variables[var_name] = parse_literal(raw_val)
+            prompt_text = f"Enter {var_name}: "
+        if not re.fullmatch(r"[A-Za-z_]\w*", var_name):
+            print("Input destination must be a valid variable name.")
+            return
+        raw_val = input(str(prompt_text) + ("" if str(prompt_text).endswith(" ") else " "))
+        variables[var_name] = parse_literal(raw_val)
 
     elif cmd == "if":
-        condition, _, command = arg.partition(" then ")
+        condition, separator, command = arg.partition(" then ")
+        if not separator:
+            print("Usage: if <condition> then <command>")
+            return
         if eval_condition(condition):
             run_code([command])
 
     elif cmd == "import":
         mod_name = arg.strip()
         loaded = False
-        extensions = ["", ".qm", ".qk"]
-        for ext in extensions:
-            filename = mod_name + ext
+        for filename in (mod_name, mod_name + ".qm", mod_name + ".qk"):
             if os.path.isfile(filename):
                 try:
                     with open(filename, "r", encoding="utf-8") as file:
-                        lines = file.readlines()
-                        run_code(lines)
-                        loaded = True
-                        break
-                except Exception as e:
-                    print(f"Import Error: {e} //Found By QuarkSaviour!")
+                        run_code(file.readlines())
+                    loaded = True
+                    break
+                except OSError as exc:
+                    print(f"Import Error: {exc} //Found By QuarkSaviour!")
                     loaded = True
                     break
         if not loaded:
@@ -577,12 +725,13 @@ def execute(line):
     else:
         print(f"Unknown command: {cmd} //Found By QuarkSaviour!")
 
-def help():
-    print("""Commands:
+
+def help_command():
+    print("""Quark 4.0 Commands:
 help
 print <item1>, <item2>
 math <expression>
-let var = value / math / random
+let var = value / math <expression> / random <min> <max>
 repeat <count> <command>
 if <condition> then <command>
 game loop <condition> ... loop end
@@ -590,69 +739,70 @@ fn <name> ... fn end
 call <name>
 input <prompt> -> <var>  (or input <var>)
 type <var>
-vector_push <vector> <val>
+vector_push <vector> <value>
 vector_pop <vector> -> <var>
 list
 time
 wait <seconds>
 random <min> <max>
 read <file>
-run / game <file>
-write / append <file> <content>
+run <file>
+game <file>  (adds .qk if omitted)
+write <file> <content>
+append <file> <content>
 clear
 import <module> (.qk or .qm)
 stop / exit / kill
 """)
 
-# Setup Interactive Session with Real-Time Color Highlighting
-if HAS_PROMPT_TOOLKIT:
-    from prompt_toolkit.styles import Style
-    custom_style = Style.from_dict({
-        'keyword': 'ansiyellow bold',
-        'name.variable': 'ansicyan',
-        'string': 'ansigreen',
-        'number': 'ansimagenta',
-        'comment': 'ansigray italic',
-    })
-    session = PromptSession(lexer=PygmentsLexer(QuarkLexer), style=custom_style)
-else:
-    session = None
 
-while running:
-    try:
-        if HAS_PROMPT_TOOLKIT:
-            user_input = session.prompt(">>> ")
-        else:
-            user_input = input(">>> ")
-            
-        sanitized_input = sanitize_line(user_input)
-        
-        if not sanitized_input:
-            continue
+# ---------------------------------------------------------------------------
+# Interactive shell
+# ---------------------------------------------------------------------------
 
-        if (sanitized_input.startswith("game loop") or sanitized_input.startswith("fn ")) and not sanitized_input.startswith("fn end"):
-            buffer = [sanitized_input]
-            depth = 1
-            start_kw = "game loop" if sanitized_input.startswith("game loop") else "fn"
-            end_kw = "loop end" if start_kw == "game loop" else "fn end"
+def get_input(prompt):
+    if session is not None:
+        return session.prompt(prompt)
+    return input(prompt)
 
-            while depth > 0:
-                if HAS_PROMPT_TOOLKIT:
-                    sub_line = sanitize_line(session.prompt("... "))
-                else:
-                    sub_line = sanitize_line(input("... "))
-                buffer.append(sub_line)
-                if start_kw == "fn" and sub_line.startswith("fn ") and not sub_line.startswith("fn end"):
-                    depth += 1
-                elif start_kw == "game loop" and sub_line.startswith("game loop"):
-                    depth += 1
-                elif sub_line == end_kw:
-                    depth -= 1
 
-            run_code(buffer)
-        else:
-            run_code([sanitized_input])
+def interactive_shell():
+    global running
+    while running:
+        try:
+            user_input = sanitize_line(get_input(">>> "))
+            if not user_input:
+                continue
 
-    except (KeyboardInterrupt, EOFError):
-        print("\nShell Stopped Working. Thank You For Using Quark!")
-        sys.exit()
+            if (user_input.startswith("game loop") or
+                    (user_input.startswith("fn ") and user_input != "fn end")):
+                buffer = [user_input]
+                is_loop = user_input.startswith("game loop")
+                start_keyword = "game loop" if is_loop else "fn"
+                end_keyword = "loop end" if is_loop else "fn end"
+                depth = 1
+
+                while depth > 0:
+                    sub_line = sanitize_line(get_input("... "))
+                    buffer.append(sub_line)
+                    if start_keyword == "fn" and sub_line.startswith("fn ") and sub_line != "fn end":
+                        depth += 1
+                    elif start_keyword == "game loop" and sub_line.startswith("game loop"):
+                        depth += 1
+                    elif sub_line == end_keyword:
+                        depth -= 1
+                run_code(buffer)
+            else:
+                run_code([user_input])
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nQuark shell stopped. Thank you for using Quark!")
+            break
+        except SystemExit:
+            break
+        except Exception as exc:
+            print(f"Runtime Error: {type(exc).__name__}: {exc} //Found By QuarkSaviour!")
+
+
+if __name__ == "__main__":
+    interactive_shell()
