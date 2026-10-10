@@ -1,0 +1,258 @@
+# A Quark 3.0 Game - The Dragon Warrior
+print ==================================================
+print                THE DRAGON WARRIOR
+print ==================================================
+print
+wait 1
+print Three centuries of peace vanished in a single bloody night...
+wait 2.5
+print The Obsidian Seal was shattered, freeing DRACO, the Tyrant Beast.
+wait 2.5
+print Worksmith Village burned. The high kingdom fell to ruin and ash.
+wait 2.5
+print The land of Dellswania is now a graveyard of broken swords and fallen kings.
+wait 2.5
+print Scholars speak in hushed terror of an ancient entity called MYSTERIO...
+wait 2.5
+print But ask no further—you do NOT want to know about him.
+wait 2.5
+print Only a warrior forged in blood and sacrifice can reclaim this doomed realm.
+wait 2.5
+print
+print --------------------------------------------------
+input What Is Your Name, Fallen Warrior: -> name
+print --------------------------------------------------
+wait 1
+
+let health = 100
+let attack = 50
+let status = NOVICE
+let gold = 50
+let potions = 1
+let an = 2
+
+# MASTER CHECK VARIABLE FOR PART 2 (Only Draco required)
+let draco_slain = 0
+let master_checker = 0
+
+fn game
+print
+print ------------------------------
+print Health: ,'health'
+print Attack: ,'attack'
+print Gold: ,'gold'
+print Potions: ,'potions'
+print Status: ,'status'
+print ------------------------------
+print
+fn end
+
+# SHOP FUNCTION WITH KATANA & CORRECTED ORDER OF OPERATIONS
+fn shop
+print
+print ------------------------------
+print          VILLAGE SHOP
+print ------------------------------
+print Potions restore 40 Health. Cost: 30 Gold each.
+print Katana adds +100 Attack. Cost: 70 Gold.
+print Mystery Gauntlet unlocks absolute power. Cost: 300 Gold.
+print
+input Press 1 To Buy Potion, Press 2 To Buy Katana, Press 3 To Buy Mystery Gauntlet, Press 4 To Exit Shop: -> shop_choice
+print
+
+# BUY POTION LOGIC (Gold deducted LAST so checks stay valid)
+if shop_choice == 1 and gold < 30 then print You do not have enough gold!
+if shop_choice == 1 and gold >= 30 then let potions = math potions + 1
+if shop_choice == 1 and gold >= 30 then print You bought 1 Health Potion!
+if shop_choice == 1 and gold >= 30 then let gold = math gold - 30
+
+# BUY KATANA LOGIC (Gold deducted LAST so checks stay valid)
+if shop_choice == 2 and gold < 70 then print You do not have enough gold for the Katana!
+if shop_choice == 2 and gold >= 70 then let attack = math attack + 100
+if shop_choice == 2 and gold >= 70 then print You purchased the legendary Katana! (+100 Attack)
+if shop_choice == 2 and gold >= 70 then let gold = math gold - 70
+
+# BUY MYSTERY GAUNTLET LOGIC (Gold deducted LAST so checks stay valid)
+if shop_choice == 3 and gold < 300 then print You do not have enough gold for the Mystery Gauntlet!
+if shop_choice == 3 and gold >= 300 then print You purchased the mysterious relic...
+if shop_choice == 3 and gold >= 300 then wait 2
+if shop_choice == 3 and gold >= 300 then print The gauntlet binds to your hand, pulsing with ominous dark energy!
+if shop_choice == 3 and gold >= 300 then wait 2.5
+if shop_choice == 3 and gold >= 300 then print
+if shop_choice == 3 and gold >= 300 then print MYSTERIO: "A fine prize, mortal... but you have opened a door you cannot close."
+if shop_choice == 3 and gold >= 300 then wait 2.5
+if shop_choice == 3 and gold >= 300 then print MYSTERIO: "I am watching your every step. I am waiting for you..."
+if shop_choice == 3 and gold >= 300 then wait 2.5
+if shop_choice == 3 and gold >= 300 then print MYSTERIO: "See you soon, 'name'..."
+if shop_choice == 3 and gold >= 300 then wait 2.5
+if shop_choice == 3 and gold >= 300 then print
+if shop_choice == 3 and gold >= 300 then wait 2.5
+if shop_choice == 3 and gold >= 300 then print MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO...
+if shop_choice == 3 and gold >= 300 then let gold = math gold - 300
+if shop_choice == 3 and gold >= 300 then import dragon2
+
+if shop_choice == 4 then print You left the shop.
+print
+fn end
+
+fn dragon
+print What Do You Want To Do
+input 1-Pick A Fight, 2-Use Potion, 3-Visit Shop, 4-Explore, 5-Exit Game: -> choice
+print
+
+# UPDATE CHECKER VALUE IF DRACO IS SLAIN
+if draco_slain == 1 then let master_checker = 1
+
+# FIGHT CHOICE (If master_checker is 1, bypass regular random fights and launch KAIRO)
+if choice == 1 and master_checker == 1 then import dragon2
+
+if choice == 1 and master_checker == 0 then let a = random 1 6
+
+# Encounter 1: Peasant
+if choice == 1 and master_checker == 0 and a == 1 then print You Encountered A Peasant
+if choice == 1 and master_checker == 0 and a == 1 then print
+if choice == 1 and master_checker == 0 and a == 1 then input Press 1 To Attack: -> att
+if choice == 1 and master_checker == 0 and a == 1 then print
+if choice == 1 and master_checker == 0 and a == 1 then print You Fought The Peasant And Won! (Earned +15 Gold)
+if choice == 1 and master_checker == 0 and a == 1 then let status = SWORDSMAN
+if choice == 1 and master_checker == 0 and a == 1 then let attack = math attack + 10
+if choice == 1 and master_checker == 0 and a == 1 then let gold = math gold + 15
+
+# Encounter 2: Bloody Knight
+if choice == 1 and master_checker == 0 and a == 2 then print You Have Encountered The Bloody Knight!
+if choice == 1 and master_checker == 0 and a == 2 then print
+if choice == 1 and master_checker == 0 and a == 2 then input Dare Press 1 To Attack, Press 2 To Run Away: -> bk
+if choice == 1 and master_checker == 0 and a == 2 then print
+
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack >= 70 then print You Demolished The Bloody Knight, but took some hits! (-20 HP, +50 Gold Earned)
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack >= 70 then let status = KNIGHT SLAYER
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack >= 70 then let attack = math attack + 40
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack >= 70 then let health = math health - 20
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack >= 70 then let gold = math gold + 50
+
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack < 70 then print You Have Been Defeated By The Bloody Knight! (-40 HP)
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack < 70 then let attack = math attack - 40
+if choice == 1 and master_checker == 0 and a == 2 and bk == 1 and attack < 70 then let health = math health - 40
+
+if choice == 1 and master_checker == 0 and a == 2 and bk == 2 then print You Just Saved Yourself, Wimp! (-10 HP)
+if choice == 1 and master_checker == 0 and a == 2 and bk == 2 then let health = math health - 10
+if choice == 1 and master_checker == 0 and a == 2 and bk == 2 then let status = COWARD
+
+# Encounter 3: Skilled Swordsman
+if choice == 1 and master_checker == 0 and a == 3 then print You Have Encountered A Skilled Swordsman
+if choice == 1 and master_checker == 0 and a == 3 then print
+if choice == 1 and master_checker == 0 and a == 3 then input Press 1 To Attack, Press 2 To Walk Away: -> ss
+if choice == 1 and master_checker == 0 and a == 3 then print
+if choice == 1 and master_checker == 0 and a == 3 then let rand = random 1 2
+
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 1 then print You Defeated The Skilled Swordsman! (-20 HP, Earned +35 Gold)
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 1 then let attack = math attack + 40
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 1 then let status = MYSTERIO
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 1 then let health = math health - 20
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 1 then let gold = math gold + 35
+
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 2 then print Defeated By The Skilled Swordsman! (-30 HP)
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 2 then let attack = math attack - 40
+if choice == 1 and master_checker == 0 and a == 3 and ss == 1 and rand == 2 then let health = math health - 30
+
+if choice == 1 and master_checker == 0 and a == 3 and ss == 2 then print You Escaped, but took minor damage! (-10 HP)
+if choice == 1 and master_checker == 0 and a == 3 and ss == 2 then let health = math health - 10
+
+# Encounter 4: Dragon (Updates draco_slain)
+if choice == 1 and master_checker == 0 and a == 4 then print You Have Encountered The DRACO - THE DEADLY BEAST DRAGON
+if choice == 1 and master_checker == 0 and a == 4 then print
+if choice == 1 and master_checker == 0 and a == 4 then input Press 1 To Fight, Press 2 To Live Longer: -> dr
+if choice == 1 and master_checker == 0 and a == 4 then print
+
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack >= 150 then print VICTORY! You drove your blade deep into Draco's heart! The tyrant dragon is slain and Dellswania is saved! (-20 HP, Earned +200 Gold)
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack >= 150 then let status = DRAGON WARRIOR
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack >= 150 then let health = math health - 20
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack >= 150 then let gold = math gold + 200
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack >= 150 then let attack = math attack + 100
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack >= 150 then let draco_slain = 1
+
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack < 150 then print The Dragon Roasted You! (-50 HP)
+if choice == 1 and master_checker == 0 and a == 4 and dr == 1 and attack < 150 then let health = math health - 50
+
+if choice == 1 and master_checker == 0 and a == 4 and dr == 2 then print You Escaped Death, but barely made it out! (-10 HP)
+if choice == 1 and master_checker == 0 and a == 4 and dr == 2 then let health = math health - 10
+if choice == 1 and master_checker == 0 and a == 4 and dr == 2 then let status = FELLOW LIFER
+
+# Encounter 5: Mysterio
+if choice == 1 and master_checker == 0 and a == 5 then print You Have Stumbled Upon Mysterio...
+if choice == 1 and master_checker == 0 and a == 5 then wait 1
+if choice == 1 and master_checker == 0 and a == 5 then print You Dont Want To Know About Him!
+
+# Encounter 6: Sacrificing Saint
+if choice == 1 and master_checker == 0 and a == 6 then print You Have Encountered The Sacrificing Saint!
+if choice == 1 and master_checker == 0 and a == 6 then print
+if choice == 1 and master_checker == 0 and a == 6 then input Press 1 To Kill, Press 2 To Walk Away: -> saint
+if choice == 1 and master_checker == 0 and a == 6 then print
+
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then print You Ruthlessly Slain The Sacrificing Saint And Absorbed His Power! (-20 HP)
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then let attack = math attack + 50
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then let health = math health - 20
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then let status = SADIST
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then wait 1
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then print
+if choice == 1 and master_checker == 0 and a == 6 and saint == 1 then print WARNING: A dark aura awakens... MYSTERIO HAS NOTICED YOUR SINS!
+
+if choice == 1 and master_checker == 0 and a == 6 and saint == 2 then print You Spared The Saint. Peace Weakens Your Blade... (-10 HP)
+if choice == 1 and master_checker == 0 and a == 6 and saint == 2 then let attack = math attack - 30
+if choice == 1 and master_checker == 0 and a == 6 and saint == 2 then let health = math health - 10
+if choice == 1 and master_checker == 0 and a == 6 and saint == 2 then let status = MONK
+
+# FIXED HEAL CHOICE
+if choice == 2 and potions <= 0 then print You don't have any potions left! Visit the Shop to buy more.
+
+if choice == 2 and potions > 0 then let health = math health + 40
+if choice == 2 and potions > 0 then print You drank a health potion and restored 40 Health!
+if choice == 2 and potions > 0 then let potions = math potions - 1
+
+# SHOP CHOICE
+if choice == 3 then call shop
+
+# EXPLORE CHOICE
+if choice == 4 then let b = random 1 2
+if choice == 4 and b == 1 then print You Reached Worksmith Village, Found 10 Gold On Ground!
+if choice == 4 and b == 1 then let gold = math gold + 10
+if choice == 4 and b == 2 then print You Reached Dellswania, The Devil's World... Exploring around.
+
+# EXIT CHOICE
+if choice == 5 then print You Have Abandoned The Quest!
+if choice == 5 then wait 2.5
+if choice == 5 then print Thanks For Playing, 'name' , Your Final Status Is, 'status'
+if choice == 5 then wait 2.5
+if choice == 5 then print MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO...
+if choice == 5 then wait 2.5
+if choice == 5 then print Made With Quark 3.0
+if choice == 5 then stop
+
+fn end
+
+# MAIN GAME LOOP
+game loop an > 1
+call game
+call dragon
+
+# GAME OVER CHECKS
+if attack <= 1 then print
+if attack <= 1 then print Warrior Blood Doesn't Run In You
+if attack <= 1 then wait 2.5
+if attack <= 1 then print Thanks For Playing, 'name' , Your Final Status Is, 'status'
+if attack <= 1 then wait 2.5
+if attack <= 1 then print MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO...
+if attack <= 1 then wait 2.5
+if attack <= 1 then print Made With Quark 3.0
+if attack <= 1 then stop
+
+if health <= 0 then print
+if health <= 0 then print You Have Succumbed To Your Wounds!
+if health <= 0 then wait 2.5
+if health <= 0 then print Thanks For Playing, 'name' , Your Final Status Is, 'status'
+if health <= 0 then wait 2.5
+if health <= 0 then print MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO...
+if health <= 0 then wait 2.5
+if health <= 0 then print Made With Quark 3.0
+if health <= 0 then stop
+loop end

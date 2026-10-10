@@ -1,0 +1,117 @@
+# A Quark 3.0 Game - Part II: MYSTERIO
+print ==================================================
+print                 PART II: MYSTERIO
+print ==================================================
+print
+wait 1
+print You step forward to pick a fight, but the sky turns pitch black...
+wait 2.5
+print The ground shatters open, and a mirror of pure silver rises from the abyss.
+wait 2.5
+print A warrior steps straight out of the glass—your exact face, your exact steel, radiating staggering power.
+wait 2.5
+print
+print KAIRO: "Well met, 'name',. The mirror finally speaks."
+wait 2.5
+
+# STATS BOOST
+let health = math health + 100
+let attack = math attack + 100
+let gold = math gold + 100
+let status = KAIRO
+
+print [STATUS UPDATE: +100 Stats Added to All Attributes! Status is now KAIRO]
+print
+wait 2.5
+
+# INTERACTIVE DIALOGUE WITH KAIRO
+print KAIRO: "You have slain Draco and cleansed your path. But you still chase blind shadows."
+wait 2.5
+input KAIRO: "Do you truly understand what is hunting you, or will you listen to reason? (1-Listen to Kairo / 2-Draw Your Blade In Anger): -> kairo_talk_1
+print
+
+if kairo_talk_1 == 2 then print KAIRO: "Foolish pride... but I expected nothing less from myself."
+if kairo_talk_1 == 2 then wait 2.5
+
+print KAIRO: "Listen closely, 'name',. The entity you fear—Mysterio—is not a phantom."
+wait 2.5
+print KAIRO: "He is the loyal shadow-servant of King Mucho... the very Sacrificing Saint you slaughtered in cold blood!"
+wait 2.5
+input KAIRO: "Mysterio commands Dellswania's dark armies to avenge his master. Will you stand with me to end him? (1-Join Forces / 2-Refuse): -> kairo_choice
+print
+
+# IF PLAYER REFUSES
+if kairo_choice == 2 then print KAIRO: "Then perish in your ignorance."
+if kairo_choice == 2 then wait 2.5
+if kairo_choice == 2 then print Mysterio strikes from the dark, catching you unawares!
+if kairo_choice == 2 then wait 2.5
+if kairo_choice == 2 then print You Have Succumbed To Your Wounds!
+if kairo_choice == 2 then wait 2.5
+if kairo_choice == 2 then print Thanks For Playing, 'name' , Your Final Status Is, 'status'
+if kairo_choice == 2 then wait 2.5
+if kairo_choice == 2 then print MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO...
+if kairo_choice == 2 then wait 2.5
+if kairo_choice == 2 then print Made With Quark 3.0
+if kairo_choice == 2 then stop
+
+# IF PLAYER ACCEPTS
+if kairo_choice == 1 then print KAIRO: "A wise choice. Together, our blades will pierce the dark citadel."
+if kairo_choice == 1 then wait 2.5
+if kairo_choice == 1 then print You and Kairo march side by side through the veil of shadows...
+if kairo_choice == 1 then wait 2.5
+
+# MYSTERIO SPEAKS INTERACTIVELY
+print
+print ==================================================
+print            CONFRONTING THE WARCHIEF
+print ==================================================
+print
+wait 1
+print A vortex of dark smoke swirls before you, revealing a towering, terrifying figure cloaked in stars and blood.
+wait 2.5
+print MYSTERIO: "So... the pathetic killer of King Mucho dares crawl into my domain."
+wait 2.5
+input MYSTERIO: "You murdered my master, the Sacrificing Saint! Do you have any final words before I turn your bones to ash? (1-Defiant / 2-Silent): -> mysterio_response
+print
+
+if mysterio_response == 1 then print 'name',: "Your master was a false idol, Mysterio! I will send you to join him!"
+if mysterio_response == 1 then wait 2.5
+if mysterio_response == 2 then print You stare at Mysterio with cold, unyielding silence, gripping your blade tighter.
+if mysterio_response == 2 then wait 2.5
+
+print MYSTERIO: "Arrogant fools! I am Mysterio, Warlord of Dellswania and eternal hand of King Mucho! FEEL MY WRATH!"
+wait 2.5
+
+# INTERACTIVE BATTLE CHOICE
+input Choose your combat action: (1-Dual Slash with Kairo / 2-Defensive Counter): -> battle_action
+print
+
+if battle_action == 1 then print You and Kairo charge forward in perfect sync, driving your combined blades straight through Mysterio's chest!
+if battle_action == 1 then wait 2.5
+if battle_action == 2 then print You hold your ground, letting Mysterio exhaust his dark magic before striking his open flank!
+if battle_action == 2 then wait 2.5
+
+print MYSTERIO: "No... King Mucho... I have failed..."
+wait 2.5
+print Mysterio shatters into a million pieces of burning ash, vanishing forever!
+wait 2.5
+
+# FINAL REVELATION & STATUS UPDATE
+print As the dark fog clears, Kairo smiles softly and begins to dissolve into brilliant silver light.
+wait 2.5
+print KAIRO: "You fought brilliantly, 'name',... but look closely into the glass one last time."
+wait 2.5
+print KAIRO: "I was never someone else. I am your true potential. I am within you. I AM YOU."
+wait 2.5
+
+let status = THE DRAGON WARRIOR
+print [STATUS UPDATE: Status is now THE DRAGON WARRIOR]
+print
+wait 2.5
+
+print Thanks For Playing, 'name' , Your Final Status Is, 'status'
+wait 2.5
+print MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO... MYSTERIO...
+wait 2.5
+print Made With Quark 3.0
+stop
