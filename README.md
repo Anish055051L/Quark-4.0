@@ -1,6 +1,6 @@
 # Quark 4.0 — Master Gaming & Vector Support
 
->Please Package QuarkInterpreter4.0.py Into .exe File Using PyInstaller For It To Work, It Only Works With Console.
+>Please Package QuarkInterpreter4.0.py Into .exe File Using PyInstaller Or Run It With Console For The Colour Code To Work.
 
 > **Quark 4.0** is a small, command-oriented interpreted language implemented in Python. It provides variables, arithmetic, conditionals, functions, loops, vectors, console input/output, random numbers, timing, and basic file/module operations.
 
