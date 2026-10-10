@@ -1,4 +1,4 @@
-# Quark 3.0 Gaming Version (Fixed Nested 'if ... then call' Execution)
+# Quark 3.0 Gaming Version (Fixed Nested 'if ... then call' Execution & Input Casting)
 import random
 import time
 import sys
@@ -71,6 +71,7 @@ def parse_print_item(item):
 def eval_condition(condition_expr):
     """
     Evaluates conditional expressions for 'if' and 'game loop'.
+    Automatically casts numeric string variables to integers/floats for comparison.
     """
     condition = safe_substitute(condition_expr)
 
@@ -79,10 +80,20 @@ def eval_condition(condition_expr):
             if op in expr:
                 left, right = expr.split(op, 1)
                 left, right = left.strip(), right.strip()
-                if not left.isdigit() and not (left.startswith('"') or left.startswith("'")):
-                    left = f"'{left}'"
-                if not right.isdigit() and not (right.startswith('"') or right.startswith("'")):
-                    right = f"'{right}'"
+                
+                # Try to evaluate numeric strings safely so comparisons work after input()
+                try:
+                    eval(left)
+                except Exception:
+                    if not left.isdigit() and not (left.startswith('"') or left.startswith("'")):
+                        left = f"'{left}'"
+                
+                try:
+                    eval(right)
+                except Exception:
+                    if not right.isdigit() and not (right.startswith('"') or right.startswith("'")):
+                        right = f"'{right}'"
+                        
                 return f"{left} {op} {right}"
         return expr
 
@@ -99,10 +110,6 @@ def eval_condition(condition_expr):
         return False
 
 def find_matching_block_end(code_lines, start_idx, start_keyword, end_keyword):
-    """
-    Scans forward to find matching block end tags for loops or functions.
-    Uses strict prefix/exact matching to avoid swallowing main code.
-    """
     depth = 0
     for i in range(start_idx, len(code_lines)):
         l = sanitize_line(code_lines[i])
@@ -118,9 +125,6 @@ def find_matching_block_end(code_lines, start_idx, start_keyword, end_keyword):
     return start_idx
 
 def run_code(code_lines):
-    """
-    Executes lines with strict block bounds, function tracking, and loop support.
-    """
     line_idx = 0
     total_lines = len(code_lines)
     loop_stack = []
@@ -220,7 +224,15 @@ def execute(line):
                     print("Error: Usage 'let var = random <min> <max>' //Found By QuarkSaviour!")
 
             else:
-                variables[name] = safe_substitute(value)
+                subbed = safe_substitute(value)
+                # Auto-cast valid numbers stored in strings so math operations work seamlessly
+                try:
+                    if "." in subbed:
+                        variables[name] = str(float(subbed))
+                    else:
+                        variables[name] = str(int(subbed))
+                except ValueError:
+                    variables[name] = subbed
 
     elif cmd == "print":
         if not arg:
@@ -339,10 +351,26 @@ def execute(line):
 
             prompt_text = prompt_text.strip()
             prompt_text = re.sub(r"'([a-zA-Z_][a-zA-Z0-9_]*)'", replace_quoted_var, prompt_text)
-            variables[var_name] = input(prompt_text + " ")
+            raw_val = input(prompt_text + " ")
+            
+            # Automatically cast input to int/float if numeric
+            try:
+                if "." in raw_val:
+                    variables[var_name] = str(float(raw_val))
+                else:
+                    variables[var_name] = str(int(raw_val))
+            except ValueError:
+                variables[var_name] = raw_val
         else:
             var_name = arg.strip()
-            variables[var_name] = input(f"Enter {var_name}: ")
+            raw_val = input(f"Enter {var_name}: ")
+            try:
+                if "." in raw_val:
+                    variables[var_name] = str(float(raw_val))
+                else:
+                    variables[var_name] = str(int(raw_val))
+            except ValueError:
+                variables[var_name] = raw_val
 
     elif cmd == "if":
         condition, _, command = arg.partition(" then ")
@@ -391,7 +419,6 @@ while running:
         if not sanitized_input:
             continue
 
-        # Multiline block collector for loops and functions in interactive mode
         if (sanitized_input.startswith("game loop") or sanitized_input.startswith("fn ")) and not sanitized_input.startswith("fn end"):
             buffer = [sanitized_input]
             depth = 1
