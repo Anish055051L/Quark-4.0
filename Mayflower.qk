@@ -1,4 +1,7 @@
 #MAYFLOWER - A QUARK 4.0 GAME
+#Download The Required Audio Files(The Only Audio Files Uploaded On This Repository) And Run The Quark Interpreter 4.0 In Terminal And Type
+# 'game Mayflower'
+
 fn tutorial
 print This Is A Text Based Game.
 wait 2
@@ -347,7 +350,7 @@ print name, And Charlie Agreed In Unison
 wait 3
 print Day 3: The Letterman Has Arrived
 wait 3
-print Letterman : Here's A Letter Named, name, Is That Gentlemen Here?
+print Letterman : Here's A Letter Named, name , Is That Gentlemen Here?
 wait 2
 input Do You Want To Receive The Letter?(Y/N): -> choice
 if choice == N then call loss
