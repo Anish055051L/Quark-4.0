@@ -1,38 +1,41 @@
 # Quark 4.0 — Master Gaming & Vector Support
 
->Please Package QuarkInterpreter4.0.py Into .exe File Using PyInstaller Or Run It With Console For The Colour Code To Work.
+> **Quark 4.0** is a command-oriented interpreted language written in Python. It supports variables, arithmetic, conditions, loops, functions, stack/queue vectors, file operations, module imports, syntax-coloured shell input, and basic audio playback.
 
-> **Quark 4.0** is a small, command-oriented interpreted language implemented in Python. It provides variables, arithmetic, conditionals, functions, loops, vectors, console input/output, random numbers, timing, and basic file/module operations.
+**Version:** Quark 4.0  
+**Program files:** `.qk`  
+**Module files:** `.qm` or `.qk`
 
-**Status:** This README documents the implementation shown with Quark 4.0. Some advertised features (notably syntax highlighting and game-oriented commands) have limitations described below.
+> **Running note:** For interactive syntax colouring, run Quark in a real terminal/console rather than an environment that strips ANSI colours or does not support interactive prompts. The optional prompt dependencies are `prompt_toolkit` and `Pygments`. Audio commands require `pygame` and a working audio device.
 
 ---
 
 ## Table of contents
 
-- [1. Quick start](#1-quick-start)
-- [2. Language overview](#2-language-overview)
-- [3. Comments and whitespace](#3-comments-and-whitespace)
-- [4. Variables and values](#4-variables-and-values)
-- [5. Printing and expressions](#5-printing-and-expressions)
-- [6. Vectors and data structures](#6-vectors-and-data-structures)
-- [7. Conditions](#7-conditions)
-- [8. Repetition and loops](#8-repetition-and-loops)
-- [9. Functions](#9-functions)
-- [10. Input and type inspection](#10-input-and-type-inspection)
-- [11. Randomness and time](#11-randomness-and-time)
-- [12. Files and modules](#12-files-and-modules)
-- [13. Shell commands](#13-shell-commands)
-- [14. Example programs](#14-example-programs)
-- [15. Syntax highlighting](#15-syntax-highlighting)
-- [16. Important implementation notes](#16-important-implementation-notes)
-- [17. Feature summary](#17-feature-summary)
+1. [Quick start](#1-quick-start)
+2. [Language overview](#2-language-overview)
+3. [Comments and whitespace](#3-comments-and-whitespace)
+4. [Variables and values](#4-variables-and-values)
+5. [Printing and expressions](#5-printing-and-expressions)
+6. [Vectors and data structures](#6-vectors-and-data-structures)
+7. [Conditions](#7-conditions)
+8. [Repetition and loops](#8-repetition-and-loops)
+9. [Functions and visibility](#9-functions-and-visibility)
+10. [Input and type inspection](#10-input-and-type-inspection)
+11. [Randomness, time, and delays](#11-randomness-time-and-delays)
+12. [Audio playback](#12-audio-playback)
+13. [Files and modules](#13-files-and-modules)
+14. [Shell commands](#14-shell-commands)
+15. [Example programs](#15-example-programs)
+16. [Syntax highlighting](#16-syntax-highlighting)
+17. [Implementation notes and limitations](#17-implementation-notes-and-limitations)
+18. [Feature summary](#18-feature-summary)
 
 ---
 
 ## 1. Quick start
 
-Save Quark programs with a `.qk` extension, for example `hello.qk`:
+Save a program as `hello.qk`:
 
 ```text
 print "Hello from Quark 4.0!"
@@ -40,44 +43,69 @@ let name = "Quark"
 print 'name'
 ```
 
-Start the Python interpreter that contains the Quark implementation, then enter commands at the `>>>` prompt. Run a saved program with:
+Start Quark's Python interpreter and enter commands at the `>>>` prompt.
+
+Run a saved file with either command:
 
 ```text
-game hello.qk
+run hello.qk
+game hello
 ```
 
-`game <file>` automatically adds `.qk` when the supplied filename does not already end in `.qk`. `run <file>` opens the filename exactly as supplied.
+- `run <file>` opens the exact filename supplied.
+- `game <file>` is a legacy alias for running a file. If the filename does not end in `.qk`, Quark adds `.qk`.
 
-> **Important:** Quark is a custom command language, not Python syntax. The examples below use Quark commands.
+For example, `game hello` runs `hello.qk`.
+
+### Optional dependencies
+
+- `prompt_toolkit` and `Pygments` enable syntax-coloured interactive input. Quark falls back to a normal input prompt if these imports are unavailable or session setup fails.
+- `pygame` enables `play <file>` and audio-file support in `wait <file>`.
+
+Install optional packages in the same Python environment used to launch Quark:
+
+```bash
+python -m pip install prompt_toolkit pygments pygame
+```
+
+Quark is its own command language; its syntax is not Python syntax.
+
+---
 
 ## 2. Language overview
 
-Quark reads one command per line. Commands are interpreted by the Python host program. Its main features are:
+Quark reads commands and interprets them through its Python host program. The language includes:
 
-- Variables holding integers, floating-point numbers, strings, booleans, `none`, and vectors.
-- Arithmetic expressions through `math`.
-- Console output using `print`, and console input using `input`.
-- Conditional execution with `if`.
-- Counted repetition with `repeat`.
-- Condition-controlled blocks using `game loop ... loop end`.
-- Named code blocks using `fn ... fn end` and `call`.
-- Stack- and queue-mode vectors.
-- Random integers, time display, and delays.
-- Basic reading, writing, appending, running, and importing of files.
-- Optional interactive prompt and syntax-colouring support if its dependencies and lexer are correctly configured.
+- Variables and literals: integers, floats, strings, booleans, `none`, and vectors.
+- Arithmetic expressions using `math`.
+- Console output with `print` and input with `input`.
+- Single-command conditions using `if`.
+- Counted repetition using `repeat`.
+- Conditional and infinite loops using `game loop ... loop end`.
+- Named functions using `fn ... fn end`, with private-by-default visibility.
+- Explicit `public fn` and `private fn` declarations.
+- Module-qualified calls using `module::function`.
+- Stack-mode and queue-mode vectors.
+- Random integers, local time, delays, and audio playback.
+- File reading, writing, appending, script execution, and module imports.
+- Interactive syntax colouring when optional prompt dependencies are available.
 
-Quark stores variables and function definitions in interpreter-wide dictionaries. Functions do not currently declare parameters or return values.
+Variables and functions are stored by the interpreter. Functions currently do not support parameters, return values, or local variable scopes.
+
+---
 
 ## 3. Comments and whitespace
 
-A line whose first non-whitespace character is `#` is treated as a comment:
+A line whose first non-whitespace character is `#` is a comment:
 
 ```text
 # This is a comment
 let score = 0
 ```
 
-Blank lines are ignored. Leading and trailing whitespace is stripped from each line. Quark does not currently document a general inline-comment syntax; use full comment lines for clarity.
+Blank lines are ignored, and leading/trailing whitespace is stripped. Use full-line comments for clarity; inline comments are not a documented general feature.
+
+---
 
 ## 4. Variables and values
 
@@ -93,8 +121,6 @@ let alive = true
 let target = none
 ```
 
-Supported literal forms include:
-
 | Value | Example |
 |---|---|
 | Integer | `42`, `-7` |
@@ -105,11 +131,11 @@ Supported literal forms include:
 | Stack-mode vector | `[1, 2, 3]` |
 | Queue-mode vector | `{1, 2, 3}` |
 
-Quark recognizes booleans and `none` case-insensitively when parsing a literal. The literal parser first tries integer and then floating-point conversion; otherwise it keeps the value as text.
+Boolean and `none` literals are case-insensitive. Quoted strings are parsed as strings; numeric-looking unquoted values are converted to integers or floats where possible. Other unquoted values are treated as text.
 
-### Assignment from an expression
+### Assignment using an expression
 
-Prefix the right-hand side with `math`:
+Prefix an expression with `math`:
 
 ```text
 let x = 12
@@ -123,11 +149,11 @@ print 'y'
 let roll = random 1 6
 ```
 
-This stores a random integer between the two inclusive endpoints.
+Both endpoints are inclusive.
 
 ### Updating a vector element
 
-Vector indexes are **zero-based**:
+Vector indexes are zero-based:
 
 ```text
 let nums = [10, 20, 30]
@@ -135,7 +161,7 @@ let nums(1) = 99
 print nums(1)
 ```
 
-The intended result of the last line is `99`. Index assignment is implemented through the special `let vector(index) = value` form.
+The final line prints `99`.
 
 ### Inspecting a variable's type
 
@@ -143,10 +169,13 @@ The intended result of the last line is `99`. Index assignment is implemented th
 type score
 type player
 type alive
+type target
 type nums
 ```
 
-Output labels include `integer`, `float`, `string`, `boolean`, and `vector (stack)` or `vector (queue)`. Note that in Python, booleans are a subclass of integers; the current implementation checks `int` before `bool`, so `type alive` may report `integer` rather than `boolean`. This is an implementation quirk.
+The type command distinguishes booleans before integers, so `true` and `false` are reported as `boolean`. Other labels include `integer`, `float`, `string`, `none`, `vector (stack)`, and `vector (queue)`.
+
+---
 
 ## 5. Printing and expressions
 
@@ -159,15 +188,9 @@ print 'player', "is ready"
 print
 ```
 
-A comma separates print items. Quark prints the items separated by spaces. In the current implementation, quoted single-word names such as `'score'` are treated as variable references if a matching variable exists; otherwise they generally remain text. This is a custom Quark convention, not ordinary string interpolation.
+Commas separate print items; output items are separated by spaces. A quoted single-word name such as `'score'` is treated as a variable reference when that variable exists. If it does not exist, the surrounding single quotes are removed and the contents are printed as text.
 
-For example:
-
-```text
-let score = 25
-print 'score'
-print 'not_a_variable'
-```
+Double-quoted strings are parsed as string literals.
 
 ### Arithmetic with `math`
 
@@ -179,22 +202,24 @@ let area = math 3.14 * 5 * 5
 print 'area'
 ```
 
-The supported operations are those accepted by Python's `eval` in the host implementation, after Quark performs its textual variable substitution. This includes ordinary arithmetic operators such as `+`, `-`, `*`, `/`, `//`, `%`, and `**`.
+The expression evaluator supports arithmetic operators `+`, `-`, `*`, `/`, `//`, `%`, and `**`, comparisons, boolean operations, and unary `+`, `-`, and `not` in the supported expression forms. Variable substitution occurs before evaluation.
 
-**Safety note:** The implementation uses Python `eval()` on expressions. Do not run untrusted Quark programs or expressions. A future version should replace `eval()` with a restricted expression parser or AST evaluator.
+Quark uses a restricted Python AST evaluator for expressions instead of directly evaluating arbitrary Python code. Unsupported expression syntax raises an error rather than being executed as a general Python expression. This is a safer approach, but it should not be treated as a complete security sandbox.
 
-### Random value in output
+### Random output
 
 ```text
 random 1 100
 print "Lucky number:", random 1 100
 ```
 
-The standalone `random` command prints a random integer. `print` items beginning with `random` also support random integer output.
+`random <min> <max>` prints a random integer, and `random` can also be used in `let` assignments and print items.
+
+---
 
 ## 6. Vectors and data structures
 
-Quark implements one custom class, `QuarkVector`. It wraps a Python list and adds a mode: `"stack"` or `"queue"`.
+Quark's `QuarkVector` wraps a list and records whether it behaves as a stack or a queue.
 
 ### Creating vectors
 
@@ -203,14 +228,14 @@ let stack = [10, 20, 30]
 let queue = {10, 20, 30}
 ```
 
-- Square brackets `[...]` create a **stack-mode** vector.
-- Curly braces `{...}` create a **queue-mode** vector.
+- Square brackets create a **stack-mode** vector.
+- Curly braces create a **queue-mode** vector.
 - Empty vectors are `[]` and `{}`.
-- Elements are parsed individually, so vectors can contain integers, floats, strings, booleans, `none`, or nested vectors.
+- Elements can include supported literals and nested vectors.
 
 ### Stack behaviour (LIFO)
 
-A stack is **last in, first out**. The most recently pushed item is removed first.
+A stack is last in, first out: the most recently added item is removed first.
 
 ```text
 let stack = [10, 20]
@@ -220,11 +245,11 @@ print 'removed'
 print stack
 ```
 
-`vector_pop` removes the final element from a stack and assigns it to the destination variable. In this example, `removed` receives `30`.
+`removed` receives `30`.
 
 ### Queue behaviour (FIFO)
 
-A queue is **first in, first out**. The oldest item is removed first.
+A queue is first in, first out: the oldest item is removed first.
 
 ```text
 let queue = {10, 20}
@@ -234,33 +259,26 @@ print 'first'
 print queue
 ```
 
-For a queue-mode vector, `vector_pop` calls the vector's `dequeue()` method, removing the element at index `0`. Here, `first` receives `10`.
+`first` receives `10`.
 
-### Vector commands and operations
+### Vector operations
 
 | Operation | Syntax | Meaning |
 |---|---|---|
 | Add to end | `vector_push v value` | Appends an item |
-| Remove item | `vector_pop v -> result` | Stack: removes last; queue: removes first |
+| Remove item | `vector_pop v -> result` | Stack removes last; queue removes first |
 | Read item | `print v(0)` | Reads a zero-based index in supported expressions |
 | Change item | `let v(0) = value` | Replaces an existing element |
-| Inspect length | Not exposed as a Quark command | `QuarkVector.length()` exists in the Python implementation |
 
-The underlying Python class also has `push`, `pop`, `dequeue`, `peek`, `length`, `__getitem__`, and `__setitem__` methods. These are host-language methods; not all are directly callable from Quark source.
+The Python-side class also defines `peek()` and `length()`, but these methods do not have dedicated Quark commands.
 
-### Empty vectors and bounds
+Removing an item from an empty vector returns `none`. Invalid vector names or assignments produce an error message. Queue removal uses list index zero, which can be slower than a dedicated deque for large queues.
 
-- Removing from an empty vector returns `none` (`None` internally).
-- Reading or assigning an out-of-range index is not a valid operation. The current read substitution may show `IndexError` as text, while assignment prints a vector index error.
-- Queue removal uses Python `list.pop(0)`, which is \(O(n)\) because the remaining elements shift. For large queues, a deque-based implementation would be more efficient.
-
-### Printing vectors
-
-Stack-mode vectors display with square brackets, e.g. `[1, 2, 3]`. Queue-mode vectors display with curly braces, e.g. `{1, 2, 3}`.
+---
 
 ## 7. Conditions
 
-Use `if <condition> then <command>` to execute one command if the condition is true:
+Use `if <condition> then <command>` to execute one command when the condition is true:
 
 ```text
 let score = 75
@@ -268,18 +286,11 @@ if score >= 50 then print "Passed!"
 if score < 50 then print "Keep practising!"
 ```
 
-Common comparison operators are:
+Supported comparisons include `==`, `!=`, `>`, `<`, `>=`, and `<=`. Boolean expressions can use `and`, `or`, and `not` where supported by the expression evaluator.
 
-- `==` equal
-- `!=` not equal
-- `>` greater than
-- `<` less than
-- `>=` greater than or equal to
-- `<=` less than or equal to
+**Limitation:** `if` runs a single command after `then`. It is not a multi-line `if` block and there is no `else` command.
 
-You can also use Python-style logical operators such as `and`, `or`, and `not` when the substituted expression remains valid.
-
-**Current limitation:** `if` executes a single command after `then`; it is not a multi-line `if` block. Conditions are evaluated using Python `eval()` after substitution, so untrusted expressions are unsafe.
+---
 
 ## 8. Repetition and loops
 
@@ -289,16 +300,16 @@ You can also use Python-style logical operators such as `and`, `or`, and `not` w
 repeat 5 print "Hello!"
 ```
 
-This executes the command five times. The command after the count is run as a one-line Quark program each time.
+This runs the command five times. The command after the count is executed as a one-line Quark program each time.
 
-A variable can be used for the count:
+A variable can supply the count:
 
 ```text
 let n = 3
 repeat n print "Again!"
 ```
 
-If the first token cannot be parsed as a count, the implementation treats the whole argument as a command and uses a count of one. Negative counts perform zero iterations because of Python's `range()` behaviour.
+Negative repeat counts are rejected with a message. If the first token is not parsed as an integer count, Quark treats the full argument as a command and attempts to run it once.
 
 ### Condition-controlled loop
 
@@ -311,47 +322,109 @@ game loop counter < 5
 loop end
 ```
 
-The body repeats while the condition is true. Update a variable used by the condition, or the loop may run forever.
+The condition is checked each time execution reaches the loop header. The loop ends when the condition becomes false.
+
+### Infinite loop
+
+Omit the condition to repeat forever:
+
+```text
+game loop
+    print "Still running..."
+loop end
+```
+
+Stop an infinite loop with **Ctrl+C** in the shell.
 
 ### Nested blocks
 
-The interpreter tracks nested `game loop` blocks and nested function definitions when finding matching end markers. Use the correct closing statement:
+Quark tracks nested `game loop` blocks and nested function declarations when looking for their matching end markers.
 
-- `game loop ...` closes with `loop end`
-- `fn ...` closes with `fn end`
+- `game loop ...` closes with `loop end`.
+- `fn ...` / `public fn ...` / `private fn ...` closes with `fn end`.
 
-**Loop caution:** Quark's current interpreter rechecks a loop condition when execution returns to the loop header. Ensure the body changes the condition so the loop can finish. Use `Ctrl+C` to interrupt the shell if necessary.
+Make sure each block has the matching closing statement.
 
-## 9. Functions
+---
 
-Functions are named blocks of Quark commands:
+## 9. Functions and visibility
+
+Functions are named blocks of Quark commands. They are registered when Quark reads their declarations, and their bodies are skipped until called.
+
+### Private by default
 
 ```text
 fn greet
-    print "Hello from a function!"
+    print "Hello from Quark!"
 fn end
 
 call greet
 ```
 
-A function is registered when the interpreter encounters its definition, and its body is skipped until it is called. `call <name>` runs the saved body.
+A plain `fn name` declaration is **private by default**.
 
-### Functions currently support
+You can also mark the visibility explicitly:
 
-- Named definitions.
-- Calls by name.
-- Function bodies containing ordinary Quark commands.
-- Nested function-definition matching while locating `fn end`.
+```text
+private fn helper
+    print "This helper is private."
+fn end
+```
 
-### Not currently supported
+### Public functions
 
-- Parameters or arguments.
-- Return values.
-- Local scopes.
-- Explicit `return`.
-- First-class function values.
+A function intended to be called from another imported module should be declared public:
 
-Variables live in the shared global `variables` dictionary, so functions operate on the same variable environment as the shell.
+```text
+public fn greet
+    print "Hello from the utilities module!"
+fn end
+```
+
+### Calling functions
+
+Use `call`:
+
+```text
+call greet
+```
+
+Function declarations and calls currently support names only. Parameters, return values, local scopes, and explicit `return` statements are not implemented. Functions share the interpreter's variable environment.
+
+### Module scope with `::`
+
+When a module is imported, its functions are registered under that module's name. Use `module::function` to call a **public** function exported by that module:
+
+```text
+import utilities
+call utilities::greet
+```
+
+Only `public fn` functions can be called from outside a module using `module::function`. Private functions cannot be accessed this way. A module's own functions can call its private functions by their unqualified names.
+
+For example, a `utilities.qm` module might contain:
+
+```text
+private fn format_message
+    print "Formatting message..."
+fn end
+
+public fn greet
+    call format_message
+    print "Hello!"
+fn end
+```
+
+Then another file or the shell can use:
+
+```text
+import utilities
+call utilities::greet
+```
+
+**Note:** Importing executes the module file and registers its function definitions. It does not create a fully isolated namespace for variables; the interpreter uses shared global variable storage. The `module::function` mechanism qualifies function names and checks visibility.
+
+---
 
 ## 10. Input and type inspection
 
@@ -361,7 +434,7 @@ Variables live in the shared global `variables` dictionary, so functions operate
 input username
 ```
 
-The shell prompts `Enter username:` and stores the parsed input in `username`.
+Quark prompts for the value and stores it in `username`.
 
 ### Custom prompt
 
@@ -370,7 +443,7 @@ input "What is your name?" -> username
 print "Hello", 'username'
 ```
 
-Input is passed through `parse_literal`, so entries such as `123`, `3.5`, `true`, `none`, `[1,2]`, or `{1,2}` become their corresponding values rather than always remaining strings.
+Input is passed through the literal parser. Values such as `123`, `3.5`, `true`, `none`, `[1,2]`, and `{1,2}` can become numbers, booleans, `none`, or vectors instead of remaining strings. Use ordinary text when you want a string that does not resemble another literal.
 
 ### Type command
 
@@ -378,9 +451,11 @@ Input is passed through `parse_literal`, so entries such as `123`, `3.5`, `true`
 type username
 ```
 
-This prints the implementation's type label for the named variable. See the type caveat in [Variables and values](#4-variables-and-values).
+This prints the type label for a defined variable. If the variable does not exist, Quark prints an error.
 
-## 11. Randomness and time
+---
+
+## 11. Randomness, time, and delays
 
 ### Random integers
 
@@ -399,9 +474,9 @@ time
 print 'time'
 ```
 
-The `time` command prints the host computer's local time in `HH:MM:SS` format. The special quoted token `'time'` is also handled by the print implementation.
+`time` prints the host computer's local time in `HH:MM:SS` format. The special print item `'time'` also displays the current time.
 
-### Delays
+### Wait for a duration
 
 ```text
 print "Starting..."
@@ -409,9 +484,51 @@ wait 2
 print "Two seconds later."
 ```
 
-`wait <seconds>` pauses the interpreter for the specified number of seconds. Decimal durations are accepted, such as `wait 0.5`.
+`wait <seconds>` pauses execution for the given number of seconds. Decimal durations such as `wait 0.5` are accepted; negative durations are rejected.
 
-## 12. Files and modules
+The `wait` command can also wait for an audio file to finish, as described in the next section.
+
+---
+
+## 12. Audio playback
+
+Audio support is optional and requires `pygame` to be installed and its mixer to initialize successfully.
+
+### Play an audio file
+
+```text
+play sound.mp3
+print "Playback has started."
+```
+
+`play <file>` loads an audio file into Pygame's music player and starts playback without waiting for it to finish. The following Quark command can run while the music is playing.
+
+Use a valid path to an audio file supported by the installed Pygame/SDL audio backend. Relative paths are resolved from the program's current working directory.
+
+### Wait for an audio file's duration
+
+```text
+play sound.mp3
+wait sound.mp3
+print "The track's duration has elapsed."
+```
+
+`wait <audio_file>` loads the file as a sound to obtain its duration, then pauses execution for that duration. It does **not** detect whether the music started with `play` has actually finished; it sleeps for the duration reported for the file.
+
+### Wait for a number of seconds
+
+```text
+wait 2
+wait 0.5
+```
+
+If Pygame is unavailable, the current implementation reports an audio-related error for `wait`, including when a numeric delay was requested. Therefore, numeric `wait` currently also depends on the Pygame import succeeding.
+
+**Audio limitations:** Audio support is basic. There are no Quark commands for pausing, resuming, stopping, or changing the volume of playback. The actual supported file formats depend on the installed Pygame/SDL environment and available codecs.
+
+---
+
+## 13. Files and modules
 
 ### Run a file
 
@@ -420,8 +537,8 @@ run hello.qk
 game hello
 ```
 
-- `run <file>` uses the filename exactly as provided.
-- `game <file>` adds `.qk` if the target does not already end in `.qk`.
+- `run <file>` uses the filename exactly as supplied.
+- `game <file>` adds `.qk` when needed and is a legacy alias for `run`.
 
 ### Read a file
 
@@ -429,7 +546,7 @@ game hello
 read notes.txt
 ```
 
-The file's contents are printed with leading/trailing whitespace removed.
+Prints the file's contents with leading/trailing whitespace removed.
 
 ### Write or append
 
@@ -438,10 +555,10 @@ write score.txt "Best score: 100"
 append score.txt "Another result"
 ```
 
-- `write` opens the file in write mode and replaces its existing contents.
-- `append` adds a new line at the end.
+- `write` replaces the file's existing contents.
+- `append` adds content at the end.
 - Each command writes one line.
-- The current parser separates the filename from the content at the first space.
+- The parser separates the filename from the content at the first space.
 
 ### Import a module
 
@@ -449,31 +566,50 @@ append score.txt "Another result"
 import utilities
 ```
 
-Quark searches for the exact name, then `<name>.qm`, then `<name>.qk`. If found, the file is read and its lines are executed. `.qm` and `.qk` are therefore the module/program extensions understood by this loader.
+Quark checks for the exact filename, then `utilities.qm`, then `utilities.qk`. If a file is found, its lines are executed as a module and function definitions are registered under that module's name.
 
-**Important:** Import executes the file; it is not a separate namespace or a compiled module system. Imported code shares the interpreter's variables and functions.
+Use `module::function` to call public functions exported by an imported module. Importing is code execution, not compilation, and module variables are not isolated from the interpreter's global variable dictionary.
 
-## 13. Shell commands
+---
+
+## 14. Shell commands
 
 | Command | Purpose |
 |---|---|
 | `help` | Prints the built-in command list |
-| `clear` | Clears the terminal where supported |
-| `list` | Lists current variables and defined function names |
-| `time` | Prints local time |
-| `wait <seconds>` | Pauses execution |
+| `print <items>` | Prints values or text |
+| `math <expression>` | Evaluates a supported expression |
+| `let var = value` | Creates or updates a variable |
+| `type <var>` | Prints the variable's type |
+| `input <var>` | Reads input into a variable |
+| `if <condition> then <command>` | Runs one command if true |
+| `repeat <count> <command>` | Runs a command repeatedly |
+| `game loop <condition> ... loop end` | Repeats while the condition is true |
+| `game loop ... loop end` | Infinite loop; interrupt with Ctrl+C |
+| `fn <name> ... fn end` | Defines a private function |
+| `private fn <name> ... fn end` | Explicitly defines a private function |
+| `public fn <name> ... fn end` | Defines a module-accessible function |
+| `call <name>` | Calls a local function |
+| `call module::name` | Calls a public function from an imported module |
+| `vector_push <vector> <value>` | Adds an item to a vector |
+| `vector_pop <vector> -> <var>` | Removes an item and stores it |
 | `random <min> <max>` | Prints a random integer |
+| `time` | Prints local time |
+| `wait <seconds>` | Pauses for a duration, if Pygame is available |
+| `play <file>` | Starts audio playback, if Pygame is available |
 | `read <file>` | Prints a file's contents |
 | `write <file> <content>` | Replaces a file with one line |
 | `append <file> <content>` | Appends one line |
-| `run <file>` | Executes a file |
+| `run <file>` | Executes a file using its exact filename |
 | `game <file>` | Executes a `.qk` file by default |
 | `import <module>` | Executes a `.qm` or `.qk` module |
-| `stop`, `exit`, `kill` | Exits the interpreter process |
+| `list` | Lists variables and defined functions |
+| `clear` | Clears the terminal where supported |
+| `stop`, `exit`, `kill` | Exits the interpreter |
 
-`list` shows variables and the names of defined functions. `clear` uses `cls` on Windows and `clear` on other platforms, with a fallback of printing many blank lines.
+---
 
-## 14. Example programs
+## 15. Example programs
 
 ### A. Score tracker
 
@@ -484,9 +620,7 @@ let score = math score + 5
 print "Final score:", 'score'
 ```
 
-### B. Guess-the-number building block
-
-This example demonstrates random numbers, input, comparison, and output. It is a small one-shot check, not a full retry game.
+### B. Guess-the-number check
 
 ```text
 let secret = random 1 10
@@ -495,6 +629,8 @@ if guess == secret then print "Correct!"
 if guess != secret then print "Not this time!"
 print "The secret was:", 'secret'
 ```
+
+This is a one-guess example, not a retry loop.
 
 ### C. Countdown
 
@@ -507,6 +643,8 @@ game loop count > 0
 loop end
 print "Go!"
 ```
+
+This example uses `wait` and therefore requires Pygame to be available in the current implementation.
 
 ### D. Stack demonstration
 
@@ -530,67 +668,120 @@ print "Next:", 'next_item'
 print "Remaining:", queue
 ```
 
-### F. Function reuse
+### F. Function visibility and modules
+
+In `utilities.qm`:
 
 ```text
-fn announce
-    print "Quark is running!"
+private fn internal_message
+    print "This helper stays private."
 fn end
 
-call announce
-call announce
+public fn greet
+    call internal_message
+    print "Hello from utilities!"
+fn end
 ```
 
-## 15. Syntax highlighting
+Then run in the shell:
 
-The Python implementation optionally imports `prompt_toolkit` and Pygments-related components. If the import fails, Quark falls back to Python's ordinary `input()` prompt.
+```text
+import utilities
+call utilities::greet
+```
 
-The provided code creates a `PromptSession` with `PygmentsLexer(QuarkLexer)`, but **`QuarkLexer` is not defined in the pasted implementation**. As written, if `prompt_toolkit` imports successfully, the program will raise `NameError` while creating the session unless `QuarkLexer` is defined elsewhere. Define a Pygments `RegexLexer` subclass before constructing the session, or temporarily use `PromptSession()` without `PygmentsLexer`.
+### G. Audio playback
 
-The file also creates the prompt session twice with different styles. The second setup overwrites the first, so only the second style would be active if the lexer issue is fixed.
+```text
+play sound.mp3
+print "The audio has started."
+wait sound.mp3
+print "The file duration has elapsed."
+```
 
-## 16. Important implementation notes
+Place `sound.mp3` in the current working directory or supply a valid path. This requires Pygame and working audio support.
 
-This section distinguishes implemented behaviour from features that may sound broader than the current code.
+### H. Infinite loop
 
-1. **Not a graphical game engine yet.** The `game` command runs a `.qk` script, and `game loop` repeats commands. The shown implementation has no graphics, sprites, keyboard/mouse event system, audio, or rendering API.
-2. **Expression evaluation uses Python `eval()`.** This is powerful but unsafe for untrusted input and is not a secure sandbox.
-3. **Variable substitution is text-based.** It replaces variable names in expressions rather than using a full parser. Complex strings, overlapping names, and certain expressions can behave unexpectedly.
-4. **Vector indexing is zero-based.** `v(0)` is the first element.
-5. **No general expression grammar.** The language currently relies on substitution and Python expression parsing, so syntax and edge cases can inherit Python behaviour.
-6. **`if` runs one command.** There is no `else` command or multi-line conditional block in the shown implementation.
-7. **Functions share global state.** They have no parameters, return values, or local variable scope.
-8. **Some vector methods are internal only.** `peek()` and `length()` exist in Python but have no dedicated Quark commands.
-9. **Type detection quirk.** The `int` check happens before the `bool` check, so booleans can be reported as integers.
-10. **Print and substitution are custom.** Quoted identifiers such as `'score'` are used to display variable values in several contexts. This is not conventional string interpolation.
-11. **Error messages are best-effort.** Several errors are caught and printed with `QuarkSaviour`, but not every possible malformed input is handled uniformly.
-12. **The prompt lexer must exist.** `QuarkLexer` is referenced but absent from the supplied source.
+```text
+game loop
+    print "Quark keeps going."
+    wait 1
+loop end
+```
 
-## 17. Feature summary
+Interrupt with Ctrl+C. As noted above, the current `wait` implementation requires Pygame.
 
-| Feature | Status in supplied implementation |
+---
+
+## 16. Syntax highlighting
+
+Quark defines a `QuarkLexer` using Pygments' `RegexLexer` and creates a `PromptSession` with `PygmentsLexer(QuarkLexer)`. When `prompt_toolkit` and Pygments are available and the session initializes successfully, the interactive `>>>` prompt can colour:
+
+- Quark keywords and commands.
+- Strings.
+- Numbers.
+- Boolean and `none` literals.
+- Comments beginning with `#`.
+- Operators and variable-like names.
+
+The shell falls back to ordinary `input()` if the optional imports are unavailable or syntax-colour session setup fails. In a console that does not support the prompt's styling, colours may not display as expected.
+
+Syntax highlighting colours the interactive prompt; it does not add colour formatting to the contents of `.qk` files or turn Quark into a graphical editor.
+
+---
+
+## 17. Implementation notes and limitations
+
+1. **Not a graphical game engine.** The `game` command is a legacy script-running alias, and `game loop` provides control flow. The implementation does not include sprites, graphics rendering, keyboard/mouse event handling, or a full game framework.
+2. **Expression evaluator is restricted, not a complete parser.** Quark uses AST-based evaluation for supported arithmetic, comparisons, boolean expressions, and unary operations. Unsupported syntax is rejected.
+3. **Variable substitution is text-based.** Names are substituted into expressions. Complex expressions, overlapping variable names, or unusual text may still behave unexpectedly.
+4. **Vector indexing is zero-based.** `v(0)` is the first item.
+5. **Conditions run one command.** There is no multi-line `if` block or `else` command.
+6. **Functions are limited.** No parameters, return values, local scopes, or explicit `return` statements are supported.
+7. **Module variables are shared.** Function names are module-qualified and public/private access is checked, but variables are held in shared interpreter state.
+8. **Public/private applies to module-qualified calls.** Functions are private by default. Only `public fn` declarations are intended to be accessible through `module::function`.
+9. **Audio is optional.** `play` and audio-file `wait` require Pygame and a working mixer. Numeric `wait` also checks for Pygame availability in this implementation.
+10. **`wait <audio_file>` waits by duration.** It sleeps for the file's reported duration; it does not monitor the current music player's playback state.
+11. **File paths use the current working directory.** Relative script, module, and audio paths depend on where Quark was launched.
+12. **Error handling is best-effort.** QuarkSaviour-style messages are used for many errors, but not every malformed command produces a detailed source location.
+13. **No compile step.** Quark programs are interpreted by the Python host program when run.
+14. **Optional prompt dependencies.** If prompt setup fails, the shell continues without syntax highlighting when the fallback input path is available.
+
+---
+
+## 18. Feature summary
+
+| Feature | Status in Quark 4.0 |
 |---|---|
 | Variables and literals | Implemented |
-| Arithmetic expressions | Implemented through Python `eval()` after substitution |
-| Console output/input | Implemented |
+| Arithmetic expressions | Implemented with restricted AST evaluation |
+| Console input/output | Implemented |
+| Boolean and `none` type reporting | Implemented |
 | Random integers | Implemented |
-| Time and delays | Implemented |
+| Local time | Implemented |
+| Numeric delays | Implemented when Pygame is available |
 | One-line conditions | Implemented |
 | Counted repetition | Implemented |
-| Condition-controlled loops | Implemented, with interpreter edge cases |
-| Named functions | Implemented without parameters/returns |
+| Conditional loops | Implemented |
+| Infinite loops | Implemented |
+| Functions | Implemented without parameters or return values |
+| Private functions by default | Implemented |
+| Explicit private/public function declarations | Implemented |
+| `module::function` calls | Implemented with public-function access checks |
 | Stack-mode vectors | Implemented |
 | Queue-mode vectors | Implemented |
 | Vector indexing and assignment | Implemented in supported forms |
 | File read/write/append | Implemented |
 | Run `.qk` files | Implemented |
-| Import `.qk` / `.qm` files | Implemented by executing their contents |
-| Terminal clearing | Implemented with platform fallback |
-| Real-time syntax highlighting | Intended, but `QuarkLexer` is missing in the supplied code |
-| Graphics/game engine | Not present in the supplied code |
+| Import `.qk` / `.qm` modules | Implemented by executing module contents |
+| Audio playback with `play` | Implemented when Pygame/audio support is available |
+| Wait for an audio file's duration | Implemented when Pygame/audio support is available |
+| Interactive syntax highlighting | Implemented with optional `prompt_toolkit` and Pygments |
+| Graphical game engine | Not included |
 
 ---
 
 **Quark 4.0 motto:** *Write commands. Build logic. Make things happen.*
 
-This README describes the code provided for Quark 4.0. If the implementation changes, update the documentation to match the actual parser and runtime behaviour.
+This README documents the supplied Quark 4.0 interpreter. If the implementation changes, update this file to match the runtime's actual behaviour.
