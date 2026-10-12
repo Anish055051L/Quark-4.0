@@ -1,0 +1,405 @@
+#MAYFLOWER - A QUARK 4.0 GAME
+fn tutorial
+print This Is A Text Based Game.
+wait 2
+print Read The Story Carefully And Make Choices That Alter It
+wait 3
+print Only Input What Is Stated
+wait 2
+print Good Luck Surviving!
+wait 1
+fn end
+
+wait 1
+clear  #os clear
+input Do You Want A Tutorial On How To Play This Game?(Y/N): -> choice
+if choice == Y then call tutorial
+clear
+wait 1
+#functions
+
+fn endl
+print =============================
+print           MISERY
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn offboard
+print =============================
+print      THROWN OFFBOARD
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn nameerror
+wait 1
+print It Doesnt Seem Like Your Name! Who Are You Fooling Mate!
+wait 2
+print You Shall Be Drowned To Death
+wait 2
+print Charlie: No!
+wait 2
+print =============================
+print      DROWNED TO DEATH
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn endc
+print =============================
+print SHOT WITH A GUN
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn run
+print You're Running Away!
+wait 2
+print Officer : Hey Wait!
+wait 2
+print The Captain Shot You With His Gun!
+play gun.mp3
+wait 2
+call endc
+fn end
+
+fn swam
+print =============================
+print FREEZED IN WATER
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+
+fn happy
+print Charlie : What? Alright Lets Go Home I Guess?
+wait 2
+print name,: Yeah! Im Not Feeling So Well
+wait 2
+print Charlie : It Is What It Is!
+wait 2
+input Board Another Ship Or Swim To Escape(1/2): -> choice
+if choice == 2 then call swam
+print =============================
+print ESCAPED POSSIBLE HELL
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn heistend
+print Charlie : You Coward!
+wait 2
+print Charlie Shouted And It Woke Everyone Up
+wait 3
+print =============================
+print BUSTED
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn loss
+wait 2
+print That Letter Must've Contained Something Valuable!
+wait 3
+print =============================
+print YOUR LOSS
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+fn unknown
+wait 1
+print =============================
+print MYSTERY UNKNOWN
+print =============================
+wait 3
+print THE END
+wait 2
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
+fn end
+
+
+#game beginning
+play intro.mp3
+print =============================
+print    Mayflower - By Anish
+print =============================
+wait 1
+print
+input What Is Your Name: -> name
+print Welcome, name
+wait 1
+print
+print You Live In Sunburn, An Island Where It Is Always Burning Hot!
+wait 3
+print You Are Poor And Miserable
+wait 2
+print But The King Of Zaple, The Neighbouring Kingdom Came With His Ship And Crew To Recruit The People Of Sunburn
+wait 3
+input Charlie : Can We Go Work In Zaple? We Can Survive That Way! (Y/N): -> choice
+if choice == Y then print Charlie: Yes, I Gave Them Our Names, Now Its Time For Us To Board The Ship
+if choice == Y then wait 2
+if choice == N then print Charlie: Alright, Im Unsure How We're Going To Survive!
+if choice == N then wait 2
+if choice == N then call endl
+let choice = none    #for reusability
+print You And Charlie Board The Enourmous Ship, Mayflower
+wait 1
+play majestic.mp3
+print =============================
+print      100 PEOPLE SURVIVE
+print =============================
+wait majestic.mp3
+print You Are Informed Through The Blaring Sound That Only The First 100 Registered People Get The Jobs
+wait 3
+print And The Rest...
+wait 2
+print They Are To Be Thrown Off Board
+wait 2
+print Charlie : We Should Speak To The Head Chief Here, Because I'm Pretty Sure We Aren't In The First 100
+wait 3
+input Do You Want To Speak To The Head Chief?(Y/N): -> choice
+if choice == N then call offboard
+print Chief : What Do You Guys Want?
+wait 2
+print name,: We're Looking For A Job, Please Give Us A Job At The Palace
+wait 3
+print Chief : Fine! You Two Take The Tower Duty, The Previous Duty Guy Disappeared Somehow!
+wait 2
+print You Get Out To The Front Of The Ship To Celebrate
+wait 2
+print Charlie : Yes! We're Saved
+wait 3
+play thunder.mp3
+print =============================
+print          THUNDER
+print =============================
+wait thunder.mp3
+print You Are In The Middle Of The Ocean And The Sky Is Filled With Dark Clouds And Thunderstorm
+wait 3
+print You See A Whale Approaching The Front Of The Ship
+wait 3
+print It Has An Engraving On Its Body That Says 'Navi'
+wait 4
+print The Whale Is Trying To Talk To You And Only You Could Understand It!
+wait 3
+input Do You Want To Say Something To The Whale? Speak With It: -> whale
+print It says back to you...
+wait 3
+print 'Do Not Go!'
+wait 3
+print name,: Must Be The Effect Of Seasickness I Suppose!
+wait 2
+print name,: I Should Go Sleep Now!
+wait 2
+print You Went To Sleep
+wait 3
+play ice.mp3
+print =============================
+print   ZAPLE - THE ICY KINGDOM
+print =============================
+wait 10
+print You Wake Up And Go Out To See The Kingdom Of Ice, Zaple
+wait 2
+print Charlie : We're Finally Here!
+wait 1
+print name,:Yes We Are!
+wait 3
+input Officer : What Is Your Name: -> name2
+if name2 != name then call nameerror
+wait 2
+print Officer : I Dont See Your Name In The List! Are You An Escapee!
+wait 2
+input Inform That You're In For The Tower Duty Or Run(1/2): -> choice
+if choice == 2 then call run
+print Officer : Oh I See! Alright You Fellas Can Go
+wait 3
+print Charlie : We Made It At Last!
+wait 2
+print name,: Yes!
+wait 2
+print Charlie : Can We Go See The Palace Of The King Now And Start Our Duty?
+wait 3
+input Do You Want To Go To The Palace Or Return Home(1/2): -> choice
+if choice == 2 then call happy
+print Charlie : I Think That's The Right Choice!
+wait 3
+play mystery.mp3
+print =============================
+print THE PALACE OF MYSTERY
+print =============================
+wait mystery.mp3
+print Its Night Time And You Just Start Your Tower Duty With Your Brother
+wait 3
+print Charlie : This Place Looks Odd!
+wait 2
+print Day 1: Finish Your Tower Duty At Night Without Getting Caught By Anomalies
+wait 4
+print Charlie : What Is That Light Over There Bro!
+play mystery2.mp3
+wait 2
+print name,: What Is That! Please Dont Tell Me Its A Ghost
+wait 3
+print Charlie : Well It Aint A Ghost, Its A Man, But Why Is He Here And Who Is He?
+wait 3
+print Charlie : I'm Gonna Go And Check!
+input Stop Charlie(Y/N): -> choice
+if choice == Y then print Charlie : I'm Not Leaving It, I'm Gonna Go And Check What's Up!
+wait 2
+print Charlie Went Near Him And Then...
+wait 3
+print Charlie Saw Him Walk Right Back To The Palace
+wait 3
+print Charlie : It Was None Other Than The King Himself
+wait 3
+print name,: What! Why Would He Be Here
+wait 2
+print I Guess He Must've Been Hiding Something
+wait 3
+print Day 2: Talks Been Going That The King Secretly Is Hiding A Fortune
+wait 3
+print Charlie : If Anything's In That Room Where He Went Last Night, It Is For Me And You
+wait 2
+print name,: Its Risky
+wait 3
+print Charlie : Well Its Worth It!
+wait 2
+input Do You Want To Perform A Heist?(Y/N): -> choice
+if choice == N then call heistend
+print You And Charlie Enter Into The Room
+wait 2
+print Just To See A Table Of A Metal Thats Not Worth Much And A Letter On It
+wait 3
+print Charlie Opened It And It Read..
+wait 2
+print Dear Son, I Hope You're Prosperous And Well And Im Writing To Mention That I Have Only A Few Days Left To Live..
+wait 5
+print And I Just Wanted To Let You Know Again That I Will Forever Be In Your Heart And That You Shall Live Long...
+wait 5
+print Charlie : Why In The World Would He Keep This In A Room Like This!
+wait 3
+print King : Because Its The Most Valuable Thing That I Hold
+wait 4
+print King : You Fellas Have Nothing To Worry About, Go On About Your Duty
+wait 3
+print name, And Charlie Agreed In Unison
+wait 3
+print Day 3: The Letterman Has Arrived
+wait 3
+print Letterman : Here's A Letter Named, name, Is That Gentlemen Here?
+wait 2
+input Do You Want To Receive The Letter?(Y/N): -> choice
+if choice == N then call loss
+print name,: Let Me Open The Letter And It Says...
+wait 3
+print Dear,name,I Hope You're Fine, I'm Writing To Inform To You That Your Whole Family Died Because Of Agues(A Virus) And It Has Been 12 Days Since I've Constantly Started Writing To You And I Got No Reply Ever Since. So I Guess It Is Time I Give Up. Thank You. Yours Truly Martha(Your Neighbour).
+wait 12
+print Both, name,And Charlie Froze After Reading It
+wait 3
+print name,: We Must Return!
+wait 3
+print Charlie Agreed
+wait 3
+print They Went To Sunburn To See The Dead Kingdom
+wait 4
+print But There Was One Old Man Sitting In Front Of A House
+wait 3
+print He Wore A Thick Scarf And A Sweater
+wait 3
+print You Approached To Inquire
+wait 2
+print name,: What Happened To Everyone?
+wait 3
+print Old Man : Everybody's Dead
+wait 2
+print He Said It With A Voice That Raised Suspicion
+wait 3
+print You Noticed That The Old Man Has A Scar Which Says 'Navi'
+wait 4
+input Do You Want To Inquire?(Y/N): -> choice
+if choice == N then call unknown
+print Old Man : Ah! You Don't Need To Worry About That!
+wait 3
+print name,: A Whale With 'Navi' Engraving Talking To Me And Warning Me Not To Go. 
+wait 4
+print name,: The Mysteriously Disappeared Tower Duty Guys.
+wait 4
+print name,: Recruiting And Then Killing The Rest.
+wait 4
+print name,: Working In A Place Where The People Of The Own Kingdom Could.
+wait 4
+print name,: The King's Appearance At The Night And His Forgiving.
+wait 4
+print name,: What Is Happening To Me?
+wait 4
+play mysteryhorror.mp3
+print =============================
+print THE END
+print =============================
+wait mysteryhorror.mp3
+print Thanks For Playing!
+wait 2
+print Made With Quark 4.0
+wait 4
+kill
