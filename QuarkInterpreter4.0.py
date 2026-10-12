@@ -1,20 +1,27 @@
-# QUARK 4.0 — Master Gaming & Vector Support
+# QUARK 4.0 — Interpreter
+
+import os
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 
 import random
 import time
 import sys
-import os
 import re
 import ast
 import operator
 from typing import Any
 
+try:
+    import pygame
+    HAS_PYGAME = True
+    pygame.mixer.init()
+except ImportError:
+    HAS_PYGAME = False
+
 variables = {}
 functions = {}
-
-# ---------------------------------------------------------------------------
-# Optional interactive prompt + Quark syntax highlighting
-# ---------------------------------------------------------------------------
+function_visibility = {}
+CURRENT_MODULE = None
 
 try:
     from prompt_toolkit import PromptSession
@@ -33,8 +40,8 @@ try:
                 (r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', token.String),
                 (
                     r"\b(?:help|print|math|let|repeat|if|then|game|loop|fn|"
-                    r"call|input|type|vector_push|vector_pop|list|time|wait|"
-                    r"random|read|run|write|append|clear|import|stop|exit|kill)\b",
+                    r"call|public|private|input|type|vector_push|vector_pop|list|time|wait|"
+                    r"random|read|run|write|append|clear|import|stop|exit|kill|play)\b",
                     token.Keyword,
                 ),
                 (r"\b(?:true|false|none)\b", token.Name.Builtin),
@@ -53,9 +60,7 @@ except ImportError:
     Style = None
     QuarkLexer = None
 
-
 def make_session():
-    """Create one prompt session, falling back to input() if optional packages fail."""
     if not HAS_PROMPT_TOOLKIT:
         return None
     try:
@@ -70,10 +75,8 @@ def make_session():
         })
         return PromptSession(lexer=PygmentsLexer(QuarkLexer), style=style)
     except Exception as exc:
-        # Syntax highlighting is optional; it must never prevent Quark starting.
         print(f"Warning: syntax highlighting disabled ({exc}).")
         return None
-
 
 print("Welcome To Quark 4.0, The Future Of Programming!")
 time.sleep(0.2)
@@ -83,11 +86,6 @@ print("Done!")
 
 session = make_session()
 running = True
-
-
-# ---------------------------------------------------------------------------
-# Vector data structure
-# ---------------------------------------------------------------------------
 
 class QuarkVector:
     def __init__(self, elements=(), mode="stack"):
@@ -125,17 +123,10 @@ class QuarkVector:
         inner = ", ".join(repr(e) if isinstance(e, str) else str(e) for e in self.elements)
         return f"[{inner}]" if self.mode == "stack" else f"{{{inner}}}"
 
-
-# ---------------------------------------------------------------------------
-# Parsing helpers
-# ---------------------------------------------------------------------------
-
 def sanitize_line(text):
     return str(text).replace("\xa0", " ").strip()
 
-
 def split_print_items(arg):
-    """Split print arguments at commas, ignoring commas inside quotes/brackets."""
     items, current = [], []
     depth = 0
     quote = None
@@ -170,7 +161,6 @@ def split_print_items(arg):
     if current or arg.endswith(","):
         items.append("".join(current).strip())
     return items
-
 
 def parse_literal(val_str):
     val_str = val_str.strip()
@@ -213,12 +203,7 @@ def parse_literal(val_str):
         pass
     return val_str
 
-
 def safe_substitute(text, local_variables=None):
-    """
-    Replace Quark variable names and v(index) expressions.
-    Quoted strings are protected from substitution.
-    """
     scope = variables if local_variables is None else local_variables
     strings = []
 
@@ -260,8 +245,6 @@ def safe_substitute(text, local_variables=None):
 
     return re.sub(r"__QUARK_STRING_(\d+)__", restore, protected)
 
-
-# Restricted expression evaluator: arithmetic/comparisons only, no arbitrary Python calls.
 _BIN_OPS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
@@ -277,9 +260,7 @@ _CMP_OPS = {
     ast.LtE: operator.le, ast.Gt: operator.gt, ast.GtE: operator.ge,
 }
 
-
 def safe_eval(expression):
-    """Evaluate a limited Python-like expression without eval()."""
     tree = ast.parse(expression, mode="eval")
 
     def visit(node):
@@ -309,20 +290,18 @@ def safe_eval(expression):
         if isinstance(node, (ast.List, ast.Tuple)):
             return [visit(item) for item in node.elts]
         raise ValueError("Unsupported expression syntax")
-    return visit(tree)
 
+    return visit(tree)
 
 def evaluate_expression(expression):
     substituted = safe_substitute(expression)
     return safe_eval(substituted)
-
 
 def eval_condition(condition_expr):
     condition = safe_substitute(condition_expr)
     try:
         return bool(safe_eval(condition))
     except Exception:
-        # Allow bare words on either side of a comparison, e.g. answer == yes.
         match = re.match(r"^\s*(.*?)\s*(==|!=|>=|<=|>|<)\s*(.*?)\s*$", condition)
         if match:
             left, op, right = match.groups()
@@ -344,12 +323,45 @@ def eval_condition(condition_expr):
         print("Condition Error: unsupported condition syntax //Found By QuarkSaviour!")
         return False
 
+def is_function_declaration(line):
+    line = sanitize_line(line)
+    return (line.startswith("fn ") or line.startswith("public fn ") or
+            line.startswith("private fn ")) and line != "fn end"
+
+
+def parse_function_declaration(line):
+    line = sanitize_line(line)
+    visibility = "private"
+    if line.startswith("public fn "):
+        visibility = "public"
+        name = line[len("public fn "):].strip()
+    elif line.startswith("private fn "):
+        name = line[len("private fn "):].strip()
+    elif line.startswith("fn ") and line != "fn end":
+        name = line[3:].strip()
+    else:
+        raise ValueError("Invalid function declaration")
+    if not re.fullmatch(r"[A-Za-z_]\w*", name):
+        raise ValueError(f"Invalid function name: {name}")
+    return name, visibility
+
+
+def resolve_function_name(name, module_name=None):
+    if "::" in name:
+        module, function = name.split("::", 1)
+        return f"{module}::{function}", True
+    if module_name:
+        namespaced = f"{module_name}::{name}"
+        if namespaced in functions:
+            return namespaced, False
+    return name, False
+
 
 def find_matching_block_end(code_lines, start_idx, start_keyword, end_keyword):
     depth = 0
     for i in range(start_idx, len(code_lines)):
         line = sanitize_line(code_lines[i])
-        if start_keyword == "fn" and line.startswith("fn ") and line != "fn end":
+        if start_keyword == "fn" and is_function_declaration(line):
             depth += 1
         elif start_keyword == "game loop" and line.startswith("game loop"):
             depth += 1
@@ -359,7 +371,6 @@ def find_matching_block_end(code_lines, start_idx, start_keyword, end_keyword):
                 return i
     return -1
 
-
 def parse_random_args(arg):
     values = safe_substitute(arg).split()
     if len(values) != 2:
@@ -367,12 +378,10 @@ def parse_random_args(arg):
     low, high = map(int, values)
     return low, high
 
-
-# ---------------------------------------------------------------------------
-# Interpreter
-# ---------------------------------------------------------------------------
-
-def run_code(code_lines):
+def run_code(code_lines, module_name=None):
+    global CURRENT_MODULE
+    previous_module = CURRENT_MODULE
+    CURRENT_MODULE = module_name
     line_idx = 0
     total_lines = len(code_lines)
     loop_stack = []
@@ -383,28 +392,43 @@ def run_code(code_lines):
             line_idx += 1
             continue
 
-        if line.startswith("fn ") and line != "fn end":
-            func_name = line[3:].strip()
+        if is_function_declaration(line):
+            try:
+                local_name, visibility = parse_function_declaration(line)
+            except ValueError as exc:
+                print(f"Function Syntax Error: {exc}")
+                line_idx += 1
+                continue
             end_idx = find_matching_block_end(code_lines, line_idx, "fn", "fn end")
             if end_idx < 0:
-                print(f"Syntax Error: Missing 'fn end' for function '{func_name}' //Found By QuarkSaviour!")
+                print(f"Syntax Error: Missing 'fn end' for function '{local_name}' //Found By QuarkSaviour!")
+                CURRENT_MODULE = previous_module
                 return
-            functions[func_name] = code_lines[line_idx + 1:end_idx]
+            full_name = f"{module_name}::{local_name}" if module_name else local_name
+            functions[full_name] = code_lines[line_idx + 1:end_idx]
+            function_visibility[full_name] = visibility
             line_idx = end_idx + 1
             continue
 
         if line.startswith("call "):
-            func_name = line[5:].strip()
-            if func_name in functions:
-                run_code(functions[func_name])
+            requested_name = line[5:].strip()
+            full_name, qualified = resolve_function_name(requested_name, module_name)
+            if full_name in functions:
+                if qualified and function_visibility.get(full_name) != "public":
+                    print(f"Function Access Error: '{requested_name}' is private and cannot be called through module scope.")
+                elif module_name is None and "::" not in requested_name and "::" in full_name:
+                    print(f"Function Error: '{requested_name}' is not available in this scope.")
+                else:
+                    run_code(functions[full_name], module_name=full_name.split("::", 1)[0] if "::" in full_name else module_name)
             else:
-                print(f"Function Error: '{func_name}' is not defined //Found By QuarkSaviour!")
+                print(f"Function Error: '{requested_name}' is not defined //Found By QuarkSaviour!")
             line_idx += 1
             continue
 
         if line.startswith("game loop"):
             condition_expr = line[len("game loop"):].strip()
-            if eval_condition(condition_expr):
+            # An omitted condition means an infinite loop; a supplied condition is checked each iteration.
+            if not condition_expr or eval_condition(condition_expr):
                 if not loop_stack or loop_stack[-1] != line_idx:
                     loop_stack.append(line_idx)
                 line_idx += 1
@@ -429,7 +453,7 @@ def run_code(code_lines):
 
         execute(line)
         line_idx += 1
-
+    CURRENT_MODULE = previous_module
 
 def parse_print_item(item):
     item = sanitize_line(item)
@@ -466,11 +490,9 @@ def parse_print_item(item):
         except Exception:
             return item[1:-1]
 
-    # Support vector reads and bare arithmetic expressions in print.
     if re.fullmatch(r"[A-Za-z_]\w*\s*\(\s*-?\d+\s*\)", item):
         return safe_substitute(item)
     return item
-
 
 def execute(line):
     line = sanitize_line(line)
@@ -540,7 +562,6 @@ def execute(line):
             print(f"Error: Variable '{target}' not found //Found By QuarkSaviour!")
         else:
             value = variables[target]
-            # bool must be checked before int, because bool subclasses int in Python.
             if isinstance(value, bool):
                 print("boolean")
             elif isinstance(value, QuarkVector):
@@ -615,13 +636,44 @@ def execute(line):
         print(time.strftime("%H:%M:%S"))
 
     elif cmd == "wait":
+        if not HAS_PYGAME:
+            print("Audio Error: pygame is not installed or available //Found By QuarkSaviour!")
+            return
+        target = safe_substitute(arg.strip())
+        filepath = parse_literal(target)
+        
+        if os.path.isfile(filepath):
+            try:
+                sound_obj = pygame.mixer.Sound(filepath)
+                duration = sound_obj.get_length()
+                time.sleep(duration)
+                return
+            except Exception as exc:
+                print(f"Audio Error: {exc} //Found By QuarkSaviour!")
+                return
+
         try:
-            seconds = float(safe_substitute(arg))
+            seconds = float(target)
             if seconds < 0:
                 raise ValueError
             time.sleep(seconds)
         except ValueError:
-            print("Usage: wait <seconds> (must be non-negative)")
+            print("Usage: wait <seconds> or wait <audio_file>")
+
+    elif cmd == "play":
+        if not HAS_PYGAME:
+            print("Audio Error: pygame is not installed or available //Found By QuarkSaviour!")
+            return
+        target = safe_substitute(arg.strip())
+        filepath = parse_literal(target)
+        if not os.path.isfile(filepath):
+            print(f"Audio Error: File '{filepath}' not found //Found By QuarkSaviour!")
+            return
+        try:
+            pygame.mixer.music.load(filepath)
+            pygame.mixer.music.play()
+        except Exception as exc:
+            print(f"Audio Error: {exc} //Found By QuarkSaviour!")
 
     elif cmd in ("run", "game"):
         target = safe_substitute(arg.strip())
@@ -712,7 +764,7 @@ def execute(line):
             if os.path.isfile(filename):
                 try:
                     with open(filename, "r", encoding="utf-8") as file:
-                        run_code(file.readlines())
+                        run_code(file.readlines(), module_name=mod_name)
                     loaded = True
                     break
                 except OSError as exc:
@@ -725,7 +777,6 @@ def execute(line):
     else:
         print(f"Unknown command: {cmd} //Found By QuarkSaviour!")
 
-
 def help_command():
     print("""Quark 4.0 Commands:
 help
@@ -734,37 +785,42 @@ math <expression>
 let var = value / math <expression> / random <min> <max>
 repeat <count> <command>
 if <condition> then <command>
-game loop <condition> ... loop end
-fn <name> ... fn end
-call <name>
+game loop <condition> ... loop end   (condition checked each iteration)
+game loop ... loop end               (infinite loop; stop with Ctrl+C)
+fn <name> ... fn end                 (private by default)
+private fn <name> ... fn end         (explicitly private)
+public fn <name> ... fn end          (export from an imported module)
+call <name>                          (call a local function)
+call module::name                    (call a public imported function)
 input <prompt> -> <var>  (or input <var>)
 type <var>
 vector_push <vector> <value>
 vector_pop <vector> -> <var>
 list
 time
-wait <seconds>
+wait <seconds> or wait <audio_file>
+play <file>
 random <min> <max>
 read <file>
 run <file>
-game <file>  (adds .qk if omitted)
+game <file>  (runs a .qk file; legacy alias for run)
 write <file> <content>
 append <file> <content>
 clear
 import <module> (.qk or .qm)
 stop / exit / kill
+
+Function visibility:
+- Functions are private by default, including plain 'fn name'.
+- 'private fn name' explicitly marks a private function.
+- Only 'public fn name' can be accessed as module::name.
+- Inside a module, its functions can call its own private functions by name.
 """)
-
-
-# ---------------------------------------------------------------------------
-# Interactive shell
-# ---------------------------------------------------------------------------
 
 def get_input(prompt):
     if session is not None:
         return session.prompt(prompt)
     return input(prompt)
-
 
 def interactive_shell():
     global running
@@ -774,8 +830,7 @@ def interactive_shell():
             if not user_input:
                 continue
 
-            if (user_input.startswith("game loop") or
-                    (user_input.startswith("fn ") and user_input != "fn end")):
+            if user_input.startswith("game loop") or is_function_declaration(user_input):
                 buffer = [user_input]
                 is_loop = user_input.startswith("game loop")
                 start_keyword = "game loop" if is_loop else "fn"
@@ -785,7 +840,7 @@ def interactive_shell():
                 while depth > 0:
                     sub_line = sanitize_line(get_input("... "))
                     buffer.append(sub_line)
-                    if start_keyword == "fn" and sub_line.startswith("fn ") and sub_line != "fn end":
+                    if start_keyword == "fn" and is_function_declaration(sub_line):
                         depth += 1
                     elif start_keyword == "game loop" and sub_line.startswith("game loop"):
                         depth += 1
@@ -802,7 +857,6 @@ def interactive_shell():
             break
         except Exception as exc:
             print(f"Runtime Error: {type(exc).__name__}: {exc} //Found By QuarkSaviour!")
-
 
 if __name__ == "__main__":
     interactive_shell()
