@@ -517,6 +517,38 @@ def evaluate_expression(expression):
     return safe_eval(substituted)
 
 def eval_condition(condition_expr):
+    # Type comparisons must be handled before safe_substitute replaces variable
+    # names with their values. `type x != integer` checks x itself; `type_of x`
+    # checks the type of the variable whose name is stored in x.
+    type_match = re.fullmatch(
+        r"\s*type\s+([A-Za-z_]\w*)\s*(==|!=)\s*(integer|float|string|boolean|none|vector)\s*",
+        condition_expr, re.I
+    )
+    if type_match:
+        variable_name, op, expected = type_match.groups()
+        actual_value = variables.get(variable_name, None)
+        actual_type = value_type(actual_value)
+        expected = expected.lower()
+        if actual_type.startswith("vector"):
+            actual_type = "vector"
+        return (actual_type == expected) if op == "==" else (actual_type != expected)
+
+    deref_type_match = re.fullmatch(
+        r"\s*type_of\s+([A-Za-z_]\w*)\s*(==|!=)\s*(integer|float|string|boolean|none|vector)\s*",
+        condition_expr, re.I
+    )
+    if deref_type_match:
+        pointer_name, op, expected = deref_type_match.groups()
+        target_name = variables.get(pointer_name)
+        if isinstance(target_name, str) and target_name in variables:
+            actual_type = value_type(variables[target_name])
+        else:
+            actual_type = "undefined"
+        if actual_type.startswith("vector"):
+            actual_type = "vector"
+        expected = expected.lower()
+        return (actual_type == expected) if op == "==" else (actual_type != expected)
+
     condition = safe_substitute(condition_expr)
     try:
         return bool(safe_eval(condition))
@@ -1057,6 +1089,12 @@ def _execute_impl(line):
         else:
             var_name = arg.strip()
             prompt_text = f"Enter {var_name}: "
+        # A function may receive the destination variable's name as a string:
+        # `fn read_value(prompt, target)` with `input prompt -> target`.
+        if var_name in variables and isinstance(variables[var_name], str):
+            candidate = variables[var_name].strip()
+            if re.fullmatch(r"[A-Za-z_]\w*", candidate) and candidate != var_name:
+                var_name = candidate
         if not re.fullmatch(r"[A-Za-z_]\w*", var_name):
             qprint("Input destination must be a valid variable name.")
             return
@@ -1072,7 +1110,10 @@ def _execute_impl(line):
             qprint("Usage: if <condition> then <command>")
             return
         if eval_condition(condition):
-            nested_result = run_code([command])
+            # Preserve the current module namespace for one-line commands.
+            # Without this, a recursive call inside an imported module's
+            # single-line if loses its module context and appears undefined.
+            nested_result = run_code([command], module_name=CURRENT_MODULE)
             if isinstance(nested_result, _FunctionReturnSignal):
                 return nested_result
 
