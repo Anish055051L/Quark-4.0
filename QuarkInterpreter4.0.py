@@ -29,6 +29,12 @@ functions = {}
 function_visibility = {}
 function_parameters = {}
 CURRENT_MODULE = None
+LAST_CALL_RESULT = None
+
+class _FunctionReturnSignal:
+    """Internal control-flow signal carrying a Quark function return value."""
+    def __init__(self, value):
+        self.value = value
 
 # Diagnostic/bypass state is scoped to the statement currently being executed.
 ACTIVE_BYPASS = set()
@@ -623,7 +629,7 @@ def parse_random_args(arg):
     return low, high
 
 def run_code(code_lines, module_name=None):
-    global CURRENT_MODULE
+    global CURRENT_MODULE, LAST_CALL_RESULT
     previous_module = CURRENT_MODULE
     CURRENT_MODULE = module_name
     line_idx = 0
@@ -635,6 +641,26 @@ def run_code(code_lines, module_name=None):
         if not line or line.startswith("#"):
             line_idx += 1
             continue
+
+        # A return exits only the current function invocation. Its value is
+        # carried back to the caller, which makes recursive functions possible.
+        if line == "return" or line.startswith("return "):
+            expression = line[6:].strip() if line.startswith("return ") else ""
+            try:
+                if not expression:
+                    return_value = None
+                elif expression.startswith("math "):
+                    return_value = evaluate_expression(expression[5:].strip())
+                elif expression.startswith("call "):
+                    run_code([expression])
+                    return_value = LAST_CALL_RESULT
+                else:
+                    return_value = parse_literal(safe_substitute(expression))
+            except Exception as exc:
+                qprint(f"Function Return Error: {exc} //Found By QuarkSaviour!")
+                return_value = None
+            CURRENT_MODULE = previous_module
+            return _FunctionReturnSignal(return_value)
 
         if is_function_declaration(line):
             try:
@@ -695,7 +721,8 @@ def run_code(code_lines, module_name=None):
             try:
                 for param, value in zip(parameters, argument_values):
                     variables[param] = value
-                run_code(functions[full_name], module_name=full_name.split("::", 1)[0] if "::" in full_name else module_name)
+                call_result = run_code(functions[full_name], module_name=full_name.split("::", 1)[0] if "::" in full_name else module_name)
+                LAST_CALL_RESULT = call_result.value if isinstance(call_result, _FunctionReturnSignal) else None
             finally:
                 for param, old_value in previous_values.items():
                     if old_value is missing:
@@ -731,7 +758,10 @@ def run_code(code_lines, module_name=None):
                 line_idx += 1
             continue
 
-        execute(line)
+        execution_result = execute(line)
+        if isinstance(execution_result, _FunctionReturnSignal):
+            CURRENT_MODULE = previous_module
+            return execution_result
         line_idx += 1
     CURRENT_MODULE = previous_module
 
@@ -816,7 +846,11 @@ def _execute_impl(line):
             qprint(f"Invalid variable name: {name_part}")
             return
 
-        if value_part.startswith("math "):
+        if value_part.startswith("call "):
+            global LAST_CALL_RESULT
+            run_code([value_part])
+            variables[name_part] = LAST_CALL_RESULT
+        elif value_part.startswith("math "):
             try:
                 variables[name_part] = evaluate_expression(value_part[5:])
             except Exception as exc:
@@ -1038,7 +1072,9 @@ def _execute_impl(line):
             qprint("Usage: if <condition> then <command>")
             return
         if eval_condition(condition):
-            run_code([command])
+            nested_result = run_code([command])
+            if isinstance(nested_result, _FunctionReturnSignal):
+                return nested_result
 
     elif cmd == "import":
         mod_name = arg.strip()
@@ -1155,6 +1191,7 @@ def execute(line):
     before_warnings = WARNING_COUNT
     snapshot = None
     capture = None
+    result = None
     try:
         ACTIVE_BYPASS = set(GLOBAL_BYPASS) | set(policy)
         if any(p.startswith("error:") for p in policy):
@@ -1164,9 +1201,9 @@ def execute(line):
                 _warn_before_statement(statement)
                 try:
                     if input_options is not None:
-                        _execute_input_with_options(statement, input_options)
+                        result = _execute_input_with_options(statement, input_options)
                     else:
-                        _execute_impl(statement)
+                        result = _execute_impl(statement)
                 except Exception as exc:
                     if isinstance(exc, IndexError):
                         qprint(f"Vector Index Error: {exc} //Found By QuarkSaviour!")
@@ -1185,9 +1222,9 @@ def execute(line):
         else:
             _warn_before_statement(statement)
             if input_options is not None:
-                _execute_input_with_options(statement, input_options)
+                result = _execute_input_with_options(statement, input_options)
             else:
-                _execute_impl(statement)
+                result = _execute_impl(statement)
     except Exception as exc:
         if isinstance(exc, IndexError):
             qprint(f"Vector Index Error: {exc} //Found By QuarkSaviour!")
@@ -1202,6 +1239,7 @@ def execute(line):
             function_parameters.clear(); function_parameters.update(snapshot[3])
     finally:
         ACTIVE_BYPASS = old_policy
+    return result
 
 
 def _execute_input_with_options(statement, options):
@@ -1256,6 +1294,8 @@ public fn <name>(a, b) ... fn end    (export from an imported module)
 call <name>                          (call a zero-parameter function)
 call <name>(value1, value2)          (pass arguments to parameters)
 call module::name(args...)           (call a public imported function)
+return <value>                       (return a value from a function)
+let result = call name(args...)      (store a function return value)
 input <prompt> -> <var>  (or input <var>)
 type <var>
 vector_push <vector> <value>
@@ -1339,10 +1379,11 @@ SAFETY NOTES
 FUNCTION PARAMETERS
 - Declare parameters with parentheses: fn greet(name, age) ... fn end.
 - Pass arguments in the same order: call greet("Anish", 16).
+- Functions can return values with `return`; assign them with `let result = call name(args...)`. Recursive calls are supported.
 - Arguments can be literals, existing variables, vectors, or 'math <expression>'.
 - Argument count must exactly match the declared parameter count.
 - Parameter values are available as variables inside the function and are restored after the call.
-- Nested calls are supported; Quark does not currently provide a return-value statement.
+- Nested and recursive calls are supported. Use `return <value>` and `let result = call name(args...)` to pass results back.
 
 FUNCTION VISIBILITY
 - Functions are private by default, including plain 'fn name'.
